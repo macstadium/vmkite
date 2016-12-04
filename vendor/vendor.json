@@ -1,0 +1,73 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "9JeTnlfFiaVPSMwyWQNAIOudgXs=",
+			"path": "github.com/vmware/govmomi",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
+			"revisionTime": "2016-12-01T19:19:10Z"
+		},
+		{
+			"checksumSHA1": "XVuCRBVn4JtnSnFRUAmeGmEtNXE=",
+			"path": "github.com/vmware/govmomi/property",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
+			"revisionTime": "2016-12-01T19:19:10Z"
+		},
+		{
+			"checksumSHA1": "eqoHqcnyVN3klOJ89N7xmJhRgu0=",
+			"path": "github.com/vmware/govmomi/session",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
+			"revisionTime": "2016-12-01T19:19:10Z"
+		},
+		{
+			"checksumSHA1": "zLg5y/6xx/yr8swoqdyxISyQfoU=",
+			"path": "github.com/vmware/govmomi/vim25",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
+			"revisionTime": "2016-12-01T19:19:10Z"
+		},
+		{
+			"checksumSHA1": "xLvppq0NUD6Hv2GIx1gh75xUzyM=",
+			"path": "github.com/vmware/govmomi/vim25/debug",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
+			"revisionTime": "2016-12-01T19:19:10Z"
+		},
+		{
+			"checksumSHA1": "/DDxH+kuXKq+lF8UGIwNkyGBVFw=",
+			"path": "github.com/vmware/govmomi/vim25/methods",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
+			"revisionTime": "2016-12-01T19:19:10Z"
+		},
+		{
+			"checksumSHA1": "MYyDIWO2Wo5/s6Sf9yLyK8ej7Uk=",
+			"path": "github.com/vmware/govmomi/vim25/mo",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
+			"revisionTime": "2016-12-01T19:19:10Z"
+		},
+		{
+			"checksumSHA1": "tN9fHudMKhR3LjGw/V0fM4xXUJw=",
+			"path": "github.com/vmware/govmomi/vim25/progress",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
+			"revisionTime": "2016-12-01T19:19:10Z"
+		},
+		{
+			"checksumSHA1": "vX1hxkTnNZNbSEZzpOMzssCzcE4=",
+			"path": "github.com/vmware/govmomi/vim25/soap",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
+			"revisionTime": "2016-12-01T19:19:10Z"
+		},
+		{
+			"checksumSHA1": "OJIJLDt3rH7KbAcgHs4G5xumSMk=",
+			"path": "github.com/vmware/govmomi/vim25/types",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
+			"revisionTime": "2016-12-01T19:19:10Z"
+		},
+		{
+			"checksumSHA1": "6o5KWcSMnVh/V70yaZNEX+VpttE=",
+			"path": "github.com/vmware/govmomi/vim25/xml",
+			"revision": "ab40ac7324b5d45b8f1677d87ec0d26349448d41",
+			"revisionTime": "2016-12-01T19:19:10Z"
+		}
+	],
+	"rootPath": "github.com/lox/vmkite"
+}
