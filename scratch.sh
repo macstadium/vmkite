@@ -2,11 +2,12 @@
 
 set -euo pipefail
 
-export GOVC_HOST="10.92.157.10"
-export GOVC_USERNAME="administrator@ljd.cc"
-export GOVC_PASSWORD="$GOVC_PASSWORD"
-export GOVC_INSECURE="true"
+source .env
 
-export GOVC_URL="https://$GOVC_HOST/sdk"
+FOLDER="/MacStadium - Vegas/vm"
 
-govc 2>&1 ls -l
+list_vms() {
+  govc ls -json "$FOLDER/*" | jq '.elements[0]'
+}
+
+list_vms
