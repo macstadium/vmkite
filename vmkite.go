@@ -10,15 +10,19 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 	"sync"
+
+	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/find"
 )
 
 var clusterPath string = "/MacStadium - Vegas/host/XSERVE_Cluster"
-var vmFolder string = "/MacStadium - Vegas/vm"
+var vmPath string = "/MacStadium - Vegas/vm"
+var managedVmPrefix string = "vmkite-"
 var macOsMinor int = 11
 var vmDS string = "PURE1-1"
 var vmdkDS string = "PURE1-1"
@@ -42,7 +46,17 @@ func main() {
 
 	ctx := context.Background()
 
-	state, err := getState(ctx)
+	c, err := vsphereLogin(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	finder, err := createFinder(ctx, c)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	state, err := getState(ctx, finder)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,6 +71,40 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+}
+
+func vsphereLogin(ctx context.Context) (*govmomi.Client, error) {
+	host := os.Getenv("VS_HOST")
+	user := os.Getenv("VS_USER")
+	pass := os.Getenv("VS_PASS")
+	insecure := os.Getenv("VS_INSECURE") == "true"
+	if host == "" || user == "" || pass == "" {
+		return nil, errors.New("VS_HOST, VS_USER, VS_PASS vSphere details required")
+	}
+	u, err := url.Parse(fmt.Sprintf("https://%s/sdk", host))
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("NewClient(%s) user:%s", u.String(), user)
+	u.User = url.UserPassword(user, pass)
+	c, err := govmomi.NewClient(ctx, u, insecure)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return c, nil
+}
+
+func createFinder(ctx context.Context, c *govmomi.Client) (*find.Finder, error) {
+	log.Println("NewFinder()")
+	finder := find.NewFinder(c.Client, true)
+	log.Println("finder.DefaultDatacenter()")
+	dc, err := finder.DefaultDatacenter(ctx)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("finder.SetDatacenter(%v)", dc)
+	finder.SetDatacenter(dc)
+	return finder, nil
 }
 
 type State struct {
@@ -188,42 +236,45 @@ func govc(ctx context.Context, args ...string) error {
 	return nil
 }
 
-// getStat queries govc to find the current state of the hosts and VMs.
-func getState(ctx context.Context) (*State, error) {
+func getState(ctx context.Context, finder *find.Finder) (*State, error) {
 	st := &State{
 		VMHost: make(map[string]string),
 		Hosts:  make(map[string]int),
 		HostIP: make(map[string]string),
 	}
 
-	var hosts elementList
-	log.Println("Getting cluster status")
-	if err := govcJSONDecode(ctx, &hosts, "ls", "-json", clusterPath); err != nil {
-		return nil, fmt.Errorf("Reading %s: %v", clusterPath, err)
+	log.Printf("finder.HostSystemList(%v)", clusterPath)
+	hostSystems, err := finder.HostSystemList(ctx, clusterPath)
+	if err != nil {
+		return nil, err
 	}
-	for _, h := range hosts.Elements {
-		if h.Object.Self.Type == "HostSystem" {
-			ip := path.Base(h.Path)
-			st.Hosts[ip] = 0
-			st.HostIP[h.Object.Self.Value] = ip
-		}
+	log.Printf("host systems:")
+	for _, hs := range hostSystems {
+		ip := hs.Name()
+		hostID := hs.Reference().Value
+		log.Printf("  - %v: %v", hostID, ip)
+		st.Hosts[ip] = 0
+		st.HostIP[hostID] = ip
 	}
 
-	var vms elementList
-	log.Println("Getting VM status")
-	if err := govcJSONDecode(ctx, &vms, "ls", "-json", vmFolder); err != nil {
-		return nil, fmt.Errorf("Reading vmFolder: %v", vmFolder, err)
+	path := fmt.Sprintf("%s/*", vmPath)
+	log.Printf("finder.VirtualMachineList(%v)", vmPath)
+	virtualMachines, err := finder.VirtualMachineList(ctx, path)
+	if err != nil {
+		return nil, err
 	}
-	for _, h := range vms.Elements {
-		if h.Object.Self.Type == "VirtualMachine" {
-			name := path.Base(h.Path)
-			hostID := h.Object.Runtime.Host.Value
-			hostIp := st.HostIP[hostID]
-			st.VMHost[name] = hostIp
-			// if hostIp != "" && strings.HasPrefix(name, "vmkite_") {
-			if hostIp != "" {
-				st.Hosts[hostIp]++
-			}
+	for _, vm := range virtualMachines {
+		name := vm.Name()
+		hs, err := vm.HostSystem(ctx)
+		if err != nil {
+			return nil, err
+		}
+		hostID := hs.Reference().Value
+		hostIp := st.HostIP[hostID]
+		log.Printf("  - %v on %v (%v)", name, hostID, hostIp)
+		st.VMHost[name] = hostIp
+		if hostIp != "" && strings.HasPrefix(name, managedVmPrefix) {
+			st.Hosts[hostIp]++
 		}
 	}
 
@@ -248,24 +299,6 @@ type elementJSON struct {
 			Host objRef // for VMs; not present otherwise
 		}
 	}
-}
-
-// govcJSONDecode runs "govc <args...>" and decodes its JSON output into dst.
-func govcJSONDecode(ctx context.Context, dst interface{}, args ...string) error {
-	cmd := exec.CommandContext(ctx, "govc", args...)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	err = json.NewDecoder(stdout).Decode(dst)
-	cmd.Process.Kill() // usually unnecessary
-	if werr := cmd.Wait(); werr != nil && err == nil {
-		err = werr
-	}
-	return err
 }
 
 func guestTypeForMinorVersion(minor int) (t string, err error) {
