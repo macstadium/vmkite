@@ -18,6 +18,8 @@ import (
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
+	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/vim25/types"
 )
 
 var clusterPath string = "/MacStadium - Vegas/host/XSERVE_Cluster"
@@ -29,6 +31,9 @@ var vmdkDS string = "PURE1-1"
 var vmdkPath string = "vmkite-test-2/vmkite-test-2.vmdk"
 var hostIpPrefix string = "10.92.157."
 var vmNetwork string = "dvPortGroup-Private-1"
+var vmMemoryMB int64 = 4096
+var vmNumCPUs int32 = 4
+var vmNumCoresPerSocket int32 = 1
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: makemac <macos_minor_version>\n")
@@ -51,12 +56,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	finder, err := createFinder(ctx, c)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	state, err := getState(ctx, finder)
+	state, err := getState(ctx, c)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,6 +66,7 @@ func main() {
 	}
 
 	if *flagCreate {
+		log.Println("createVM()")
 		err = createVM(ctx, state)
 		if err != nil {
 			log.Fatal(err)
@@ -94,25 +95,19 @@ func vsphereLogin(ctx context.Context) (*govmomi.Client, error) {
 	return c, nil
 }
 
-func createFinder(ctx context.Context, c *govmomi.Client) (*find.Finder, error) {
-	log.Println("NewFinder()")
-	finder := find.NewFinder(c.Client, true)
-	log.Println("finder.DefaultDatacenter()")
-	dc, err := finder.DefaultDatacenter(ctx)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("finder.SetDatacenter(%v)", dc)
-	finder.SetDatacenter(dc)
-	return finder, nil
-}
-
 type State struct {
-	mu sync.Mutex `json:"-"`
+	mu     sync.Mutex   `json:"-"`
+	finder *find.Finder `json:"-"`
+
+	Datacenter *object.Datacenter
+	Datastore  *object.Datastore
 
 	Hosts  map[string]int    // IP address -> running vmkite VM count (including 0)
 	VMHost map[string]string // "vmkite-macOS_10_11-host-10.1.2.12-b" => "10.1.2.12"
 	HostIP map[string]string // "host-5" -> "10.1.2.15"
+
+	HostSystems map[string]*object.HostSystem // "host-5" => object
+	HostIDS     []string                      // "host-5", ...
 }
 
 func printState(state *State) {
@@ -121,8 +116,6 @@ func printState(state *State) {
 }
 
 func createVM(ctx context.Context, st *State) error {
-	log.Println("creating VM...")
-
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
@@ -137,18 +130,52 @@ func createVM(ctx context.Context, st *State) error {
 	}
 	name := fmt.Sprintf("vmkite-macOS_10_%d-host-%s-%s", macOsMinor, hostIp, hostWhich)
 
-	log.Println("creating VM", name)
+	dcFolders, err := st.Datacenter.Folders(ctx)
+	if err != nil {
+		return err
+	}
 
-	if err := govc(ctx, "vm.create",
-		"-m", "4096",
-		"-c", "6",
-		"-on=false",
-		"-net", vmNetwork,
-		"-g", guestType,
-		"-ds", vmDS,
-		"-host.ip", hostIp,
-		name,
-	); err != nil {
+	deviceSpecs := []types.BaseVirtualDeviceConfigSpec{}
+	nd, err := createNetworkDevice(ctx, st, vmNetwork)
+	if err != nil {
+		return err
+	}
+	deviceSpecs = append(deviceSpecs, nd)
+
+	scsi, err := object.SCSIControllerTypes().CreateSCSIController("scsi")
+	if err != nil {
+		return err
+	}
+	deviceSpecs = append(deviceSpecs, &types.VirtualDeviceConfigSpec{
+		Operation: types.VirtualDeviceConfigSpecOperationAdd,
+		Device:    scsi,
+	})
+
+	fileInfo := &types.VirtualMachineFileInfo{
+		VmPathName: fmt.Sprintf("[%s]", st.Datastore.Name()),
+	}
+
+	configSpec := types.VirtualMachineConfigSpec{
+		DeviceChange:      deviceSpecs,
+		Files:             fileInfo,
+		GuestId:           guestType,
+		MemoryMB:          vmMemoryMB,
+		Name:              name,
+		NumCPUs:           vmNumCPUs,
+		NumCoresPerSocket: vmNumCoresPerSocket,
+	}
+
+	hostID := st.HostIDS[0] // TODO: use dynamically picked host
+	hostSystem := st.HostSystems[hostID]
+	resourcePool, err := hostSystem.ResourcePool(ctx)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("CreateVM %s on %s (%s)", name, hostID, hostIp)
+
+	task, err := dcFolders.VmFolder.CreateVM(ctx, configSpec, resourcePool, hostSystem)
+	if err != nil {
 		return err
 	}
 	defer func() {
@@ -159,6 +186,11 @@ func createVM(ctx context.Context, st *State) error {
 			}
 		}
 	}()
+	log.Println("waiting for CreateVM_Task")
+	err = task.Wait(ctx)
+	if err != nil {
+		return err
+	}
 
 	if err := govc(ctx, "vm.change",
 		"-e", "smc.present=TRUE",
@@ -236,11 +268,33 @@ func govc(ctx context.Context, args ...string) error {
 	return nil
 }
 
-func getState(ctx context.Context, finder *find.Finder) (*State, error) {
+func getState(ctx context.Context, c *govmomi.Client) (*State, error) {
+	finder := find.NewFinder(c.Client, true)
+
+	log.Println("finder.DefaultDatacenter()")
+	dc, err := finder.DefaultDatacenter(ctx)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("  - %s", dc)
+	finder.SetDatacenter(dc)
+
+	log.Printf("finder.Datastore(%v)", vmDS)
+	ds, err := finder.Datastore(ctx, vmDS)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("  - %s", ds)
+
 	st := &State{
-		VMHost: make(map[string]string),
-		Hosts:  make(map[string]int),
-		HostIP: make(map[string]string),
+		finder:      finder,
+		Datacenter:  dc,
+		Datastore:   ds,
+		VMHost:      make(map[string]string),
+		Hosts:       make(map[string]int),
+		HostIP:      make(map[string]string),
+		HostSystems: make(map[string]*object.HostSystem),
+		HostIDS:     make([]string, 0),
 	}
 
 	log.Printf("finder.HostSystemList(%v)", clusterPath)
@@ -248,13 +302,14 @@ func getState(ctx context.Context, finder *find.Finder) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("host systems:")
 	for _, hs := range hostSystems {
 		ip := hs.Name()
 		hostID := hs.Reference().Value
 		log.Printf("  - %v: %v", hostID, ip)
 		st.Hosts[ip] = 0
 		st.HostIP[hostID] = ip
+		st.HostSystems[hostID] = hs
+		st.HostIDS = append(st.HostIDS, hostID)
 	}
 
 	path := fmt.Sprintf("%s/*", vmPath)
@@ -313,4 +368,30 @@ func guestTypeForMinorVersion(minor int) (t string, err error) {
 		err = fmt.Errorf("unknown VM guest type for macOS 10.%d", minor)
 	}
 	return
+}
+
+func createNetworkDevice(ctx context.Context, state *State, label string) (*types.VirtualDeviceConfigSpec, error) {
+	f := state.finder
+	network, err := f.Network(ctx, "*"+label)
+	if err != nil {
+		return nil, err
+	}
+
+	backing, err := network.EthernetCardBackingInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.VirtualDeviceConfigSpec{
+		Operation: types.VirtualDeviceConfigSpecOperationAdd,
+		Device: &types.VirtualE1000{
+			types.VirtualEthernetCard{
+				VirtualDevice: types.VirtualDevice{
+					Key:     -1,
+					Backing: backing,
+				},
+				AddressType: string(types.VirtualEthernetCardMacTypeGenerated),
+			},
+		},
+	}, nil
 }
