@@ -22,15 +22,15 @@ import (
 	"github.com/vmware/govmomi/vim25/types"
 )
 
-var clusterPath string = "/MacStadium - Vegas/host/XSERVE_Cluster"
-var vmPath string = "/MacStadium - Vegas/vm"
-var managedVmPrefix string = "vmkite-"
-var macOsMinor int = 11
-var vmDS string = "PURE1-1"
-var vmdkDS string = "PURE1-1"
-var vmdkPath string = "vmkite-test-2/vmkite-test-2.vmdk"
-var hostIpPrefix string = "10.92.157."
-var vmNetwork string = "dvPortGroup-Private-1"
+var clusterPath = "/MacStadium - Vegas/host/XSERVE_Cluster"
+var vmPath = "/MacStadium - Vegas/vm"
+var managedVMPrefix = "vmkite-"
+var macOsMinor = 11
+var vmDS = "PURE1-1"
+var vmdkDS = "PURE1-1"
+var vmdkPath = "vmkite-test-2/vmkite-test-2.vmdk"
+var hostIPPrefix = "10.92.157."
+var vmNetwork = "dvPortGroup-Private-1"
 var vmMemoryMB int64 = 4096
 var vmNumCPUs int32 = 4
 var vmNumCoresPerSocket int32 = 1
@@ -56,18 +56,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	state, err := getState(ctx, c)
+	st, err := getState(ctx, c)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if *flagStatus {
-		printState(state)
+		printState(st)
 	}
 
 	if *flagCreate {
 		log.Println("createVM()")
-		err = createVM(ctx, state)
+		err = createVM(ctx, st)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -95,7 +95,7 @@ func vsphereLogin(ctx context.Context) (*govmomi.Client, error) {
 	return c, nil
 }
 
-type State struct {
+type state struct {
 	mu     sync.Mutex   `json:"-"`
 	finder *find.Finder `json:"-"`
 
@@ -110,12 +110,12 @@ type State struct {
 	HostIDS     []string                      // "host-5", ...
 }
 
-func printState(state *State) {
-	stj, _ := json.MarshalIndent(state, "", "  ")
+func printState(st *state) {
+	stj, _ := json.MarshalIndent(st, "", "  ")
 	fmt.Printf("%s\n", stj)
 }
 
-func createVM(ctx context.Context, st *State) error {
+func createVM(ctx context.Context, st *state) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
@@ -124,11 +124,11 @@ func createVM(ctx context.Context, st *State) error {
 		return err
 	}
 
-	hostIp, hostWhich, err := st.pickHost()
+	hostIP, hostWhich, err := st.pickHost()
 	if err != nil {
 		return err
 	}
-	name := fmt.Sprintf("vmkite-macOS_10_%d-host-%s-%s", macOsMinor, hostIp, hostWhich)
+	name := fmt.Sprintf("vmkite-macOS_10_%d-host-%s-%s", macOsMinor, hostIP, hostWhich)
 
 	dcFolders, err := st.Datacenter.Folders(ctx)
 	if err != nil {
@@ -172,7 +172,7 @@ func createVM(ctx context.Context, st *State) error {
 		return err
 	}
 
-	log.Printf("CreateVM %s on %s (%s)", name, hostID, hostIp)
+	log.Printf("CreateVM %s on %s (%s)", name, hostID, hostIP)
 
 	task, err := dcFolders.VmFolder.CreateVM(ctx, configSpec, resourcePool, hostSystem)
 	if err != nil {
@@ -225,18 +225,18 @@ func createVM(ctx context.Context, st *State) error {
 }
 
 // st.mu must be held.
-func (st *State) pickHost() (hostIp string, hostWhich string, err error) {
+func (st *state) pickHost() (hostIP string, hostWhich string, err error) {
 	for ip, inUse := range st.Hosts {
-		if !strings.HasPrefix(ip, hostIpPrefix) {
+		if !strings.HasPrefix(ip, hostIPPrefix) {
 			continue
 		}
 		if inUse >= 2 {
 			// Apple virtualization license policy.
 			continue
 		}
-		hostIp = ip
+		hostIP = ip
 		hostWhich = "a" // unless in use
-		if st.whichAInUse(hostIp) {
+		if st.whichAInUse(hostIP) {
 			hostWhich = "b"
 		}
 		return
@@ -244,11 +244,11 @@ func (st *State) pickHost() (hostIp string, hostWhich string, err error) {
 	return "", "", errors.New("no usable host found")
 }
 
-// whichAInUse reports whether a VM is running on the provided hostIp named
+// whichAInUse reports whether a VM is running on the provided hostIP named
 // with suffix "a".
 //
 // st.mu must be held
-func (st *State) whichAInUse(ip string) bool {
+func (st *state) whichAInUse(ip string) bool {
 	suffix := fmt.Sprintf("-host-%s-a", ip) // vmkite-macOS_10_%d-host-%s-%s
 	for name := range st.VMHost {
 		if strings.HasSuffix(name, suffix) {
@@ -268,7 +268,7 @@ func govc(ctx context.Context, args ...string) error {
 	return nil
 }
 
-func getState(ctx context.Context, c *govmomi.Client) (*State, error) {
+func getState(ctx context.Context, c *govmomi.Client) (*state, error) {
 	finder := find.NewFinder(c.Client, true)
 
 	log.Println("finder.DefaultDatacenter()")
@@ -286,7 +286,7 @@ func getState(ctx context.Context, c *govmomi.Client) (*State, error) {
 	}
 	log.Printf("  - %s", ds)
 
-	st := &State{
+	st := &state{
 		finder:      finder,
 		Datacenter:  dc,
 		Datastore:   ds,
@@ -325,11 +325,11 @@ func getState(ctx context.Context, c *govmomi.Client) (*State, error) {
 			return nil, err
 		}
 		hostID := hs.Reference().Value
-		hostIp := st.HostIP[hostID]
-		log.Printf("  - %v on %v (%v)", name, hostID, hostIp)
-		st.VMHost[name] = hostIp
-		if hostIp != "" && strings.HasPrefix(name, managedVmPrefix) {
-			st.Hosts[hostIp]++
+		hostIP := st.HostIP[hostID]
+		log.Printf("  - %v on %v (%v)", name, hostID, hostIP)
+		st.VMHost[name] = hostIP
+		if hostIP != "" && strings.HasPrefix(name, managedVMPrefix) {
+			st.Hosts[hostIP]++
 		}
 	}
 
@@ -370,8 +370,8 @@ func guestTypeForMinorVersion(minor int) (t string, err error) {
 	return
 }
 
-func createNetworkDevice(ctx context.Context, state *State, label string) (*types.VirtualDeviceConfigSpec, error) {
-	f := state.finder
+func createNetworkDevice(ctx context.Context, st *state, label string) (*types.VirtualDeviceConfigSpec, error) {
+	f := st.finder
 	network, err := f.Network(ctx, "*"+label)
 	if err != nil {
 		return nil, err
