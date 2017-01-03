@@ -4,36 +4,45 @@ vmkite
 Objective
 ---------
 
-Given a VMware ESXi cluster, maintain a pool of macOS virtual machines each
-in a clean state waiting to perform CI builds via buildkite-agent.
+Given a VMware vSphere cluster of Mac hardware, monitor a [Buildkite][bk]
+account for jobs and rapidly launch a suitable clean-state macOS virtual
+machine running [Buildkite Agent][bka] for each one.
 
 Strategy
 --------
 
-* Load a base image / VM / template into ESXi cluster.
-* Initialize the pool by creating the desired number of VMs (minus already running VMs).
-    * New VM with existing disk image? New from template? Clone running VM?
-    * Optimization: Instant Clone? (vmfork / project fargo)
-* Each VM starts `buildkite-agent` on boot, connecting and waiting for jobs.
+* Assume base images / VMs / templates loaded into VMware cluster.
+* Poll Buildkite API for jobs matching `vmkite-name=X` where X is a known base/template.
+* Check for available slots based on X virtual machines per host.
+* Create VM with independent non-persistent disk from base image.
+* VM launches Buildkite Agent with `vmkite-name=X` metadata.
 * After a job, the VM shuts itself down.
-    * Optimization: reverts to snapshot of clean state.
-* Poll running VM count, create new VMs when fewer than desired.
-    * Optimization: VMware events / hooks instead of polling?
 
 Tools
 -----
 
-[`makemac.go`][makemac] by Brad Fitzpatrick for `golang/build` has very similar objectives, but for building the Go codebase as opposed to Buildkite agents. It wraps the `govc` CLI interface of the `govmomi` VMware Go library and is of rough-draft quality. It has a few [code review comments][makemac-gerrit].
+[`makemac.go`][makemac] by Brad Fitzpatrick for `golang/build` is a rough-draft
+quality tool with similar objectives for building the Go codebase on macOS VMs.
+It wraps the `govc` CLI interface of the `govmomi` VMware Go library. It has a
+few [code review comments][makemac-gerrit].
 
-[`govmomi`][govmomi] is the official Go library for the VMware vSphere API. It has a CLI interface called [`govc`][govc].
+[`govmomi`][govmomi] is the official Go library for the VMware vSphere API. It
+has a CLI interface called [`govc`][govc].
+
+[`go-buildkite`][go-buildkite] is the Buildkite API client for Go.
 
 Notes
 -----
 
-`makemac.go` code review notes suggest booting from a template is slow, and that creating new VMs from scratch and attaching a frozen disk image is fastest.
+`makemac.go` code review notes suggest booting from a template is slow, and
+that creating new VMs from scratch and attaching a frozen disk image is
+fastest.
 
 
+[bk]: https://buildkite.com/
+[bka]: https://github.com/buildkite/agent
+[go-buildkite]: https://github.com/buildkite/go-buildkite
 [govc]: https://github.com/vmware/govmomi/tree/master/govc
 [govmomi]: https://github.com/vmware/govmomi
-[makemac]: https://github.com/golang/build/blob/master/cmd/makemac/makemac.go
 [makemac-gerrit]: https://go-review.googlesource.com/#/c/28584/
+[makemac]: https://github.com/golang/build/blob/master/cmd/makemac/makemac.go
