@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"os/exec"
-	"strings"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
@@ -180,16 +178,6 @@ func (vs *Session) CreateVM(params VirtualMachineCreationParams) error {
 		}
 	}()
 
-	if err := govc(vs.ctx, "vm.disk.attach",
-		"-vm", params.Name,
-		"-link=true",
-		"-persist=false",
-		"-ds", params.SrcDiskDataStore,
-		"-disk", params.SrcDiskPath,
-	); err != nil {
-		return err
-	}
-
 	if err := vm.PowerOn(); err != nil {
 		return err
 	}
@@ -211,30 +199,29 @@ func (vs *Session) vmFolder() (*object.Folder, error) {
 
 func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs types.VirtualMachineConfigSpec, err error) {
 
-	eth, err := vs.createEthernetConfigSpec(params.NetworkLabel)
+	devices, err := addEthernet(nil, vs, params.NetworkLabel)
 	if err != nil {
 		return
 	}
 
-	disk, err := vs.createDiskConfigSpec()
+	devices, err = addSCSI(devices)
 	if err != nil {
 		return
 	}
 
-	usb, err := vs.createUsbConfigSpec()
+	devices, err = addDisk(devices, vs, params)
 	if err != nil {
 		return
 	}
 
-	deviceSpecs := []types.BaseVirtualDeviceConfigSpec{
-		eth,
-		disk,
-		usb,
+	devices, err = addUSB(devices)
+	if err != nil {
+		return
 	}
 
-	extraConfig := []types.BaseOptionValue{
-		&types.OptionValue{Key: "ich7m.present", Value: "true"},
-		&types.OptionValue{Key: "smc.present", Value: "true"},
+	deviceChange, err := devices.ConfigSpec(types.VirtualDeviceConfigSpecOperationAdd)
+	if err != nil {
+		return
 	}
 
 	guestType, err := guestTypeForMinorVersion(params.MacOsMinorVersion)
@@ -255,21 +242,24 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 		VmPathName: fmt.Sprintf("[%s]", ds.Name()),
 	}
 
+	t := true
 	cs = types.VirtualMachineConfigSpec{
-		DeviceChange:      deviceSpecs,
-		ExtraConfig:       extraConfig,
-		Files:             fileInfo,
-		GuestId:           guestType,
-		MemoryMB:          params.MemoryMB,
-		Name:              params.Name,
-		NumCPUs:           params.NumCPUs,
-		NumCoresPerSocket: params.NumCoresPerSocket,
+		DeviceChange:        deviceChange,
+		Files:               fileInfo,
+		GuestId:             guestType,
+		MemoryMB:            params.MemoryMB,
+		Name:                params.Name,
+		NestedHVEnabled:     &t,
+		NumCPUs:             params.NumCPUs,
+		NumCoresPerSocket:   params.NumCoresPerSocket,
+		VirtualICH7MPresent: &t,
+		VirtualSMCPresent:   &t,
 	}
 
 	return
 }
 
-func (vs *Session) createEthernetConfigSpec(label string) (*types.VirtualDeviceConfigSpec, error) {
+func addEthernet(devices object.VirtualDeviceList, vs *Session, label string) (object.VirtualDeviceList, error) {
 	finder, err := vs.getFinder()
 	if err != nil {
 		return nil, err
@@ -284,41 +274,53 @@ func (vs *Session) createEthernetConfigSpec(label string) (*types.VirtualDeviceC
 	if err != nil {
 		return nil, err
 	}
-	return &types.VirtualDeviceConfigSpec{
-		Operation: types.VirtualDeviceConfigSpecOperationAdd,
-		Device: &types.VirtualE1000{
-			types.VirtualEthernetCard{
-				VirtualDevice: types.VirtualDevice{
-					Key:     -1,
-					Backing: backing,
-				},
-				AddressType: string(types.VirtualEthernetCardMacTypeGenerated),
+	eth := &types.VirtualE1000{
+		types.VirtualEthernetCard{
+			VirtualDevice: types.VirtualDevice{
+				Key:     -1,
+				Backing: backing,
 			},
+			AddressType: string(types.VirtualEthernetCardMacTypeGenerated),
 		},
-	}, nil
+	}
+	return append(devices, eth), nil
 }
 
-func (vs *Session) createDiskConfigSpec() (*types.VirtualDeviceConfigSpec, error) {
+func addSCSI(devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
 	scsi, err := object.SCSIControllerTypes().CreateSCSIController("scsi")
 	if err != nil {
 		return nil, err
 	}
-	return &types.VirtualDeviceConfigSpec{
-		Operation: types.VirtualDeviceConfigSpecOperationAdd,
-		Device:    scsi,
-	}, nil
+	return append(devices, scsi), nil
 }
 
-func (vs *Session) createUsbConfigSpec() (*types.VirtualDeviceConfigSpec, error) {
-	t := true
-	usb := &types.VirtualUSBController{
-		AutoConnectDevices: &t,
-		EhciEnabled:        &t,
+func addDisk(devices object.VirtualDeviceList, vs *Session, params VirtualMachineCreationParams) (object.VirtualDeviceList, error) {
+	finder, err := vs.getFinder()
+	if err != nil {
+		return nil, err
 	}
-	return &types.VirtualDeviceConfigSpec{
-		Operation: types.VirtualDeviceConfigSpecOperationAdd,
-		Device:    usb,
-	}, nil
+	debugf("finder.Datastore(%s)", params.SrcDiskDataStore)
+	diskDatastore, err := finder.Datastore(vs.ctx, params.SrcDiskDataStore)
+	if err != nil {
+		return nil, err
+	}
+	controller, err := devices.FindDiskController("scsi")
+	if err != nil {
+		return nil, err
+	}
+	ds := diskDatastore.Reference()
+	path := diskDatastore.Path(params.SrcDiskPath)
+	disk := devices.CreateDisk(controller, ds, path)
+	backing := disk.Backing.(*types.VirtualDiskFlatVer2BackingInfo)
+	backing.DiskMode = string(types.VirtualDiskModeIndependent_nonpersistent)
+	disk = devices.ChildDisk(disk)
+	return append(devices, disk), nil
+}
+
+func addUSB(devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
+	t := true
+	usb := &types.VirtualUSBController{AutoConnectDevices: &t, EhciEnabled: &t}
+	return append(devices, usb), nil
 }
 
 func guestTypeForMinorVersion(minor int) (t string, err error) {
@@ -354,14 +356,4 @@ func (vs *Session) getFinder() (*find.Finder, error) {
 
 func debugf(format string, data ...interface{}) {
 	log.Printf(format, data...)
-}
-
-// govc runs "govc <args...>" and ignores its output, unless there's an error.
-func govc(ctx context.Context, args ...string) error {
-	debugf("govc %s", strings.Join(args, " "))
-	out, err := exec.CommandContext(ctx, "govc", args...).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("govc %s ...: %v, %s", args[0], err, out)
-	}
-	return nil
 }
