@@ -31,7 +31,7 @@ var vmNumCPUs int32 = 4
 var vmNumCoresPerSocket int32 = 1
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: makemac <macos_minor_version>\n")
+	fmt.Fprintf(os.Stderr, "Usage: vmkite [--status] [--create]\n")
 	os.Exit(1)
 }
 
