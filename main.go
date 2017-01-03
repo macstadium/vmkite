@@ -29,8 +29,9 @@ func run(args []string, exit func(code int)) {
 
 	cmd.ConfigureGlobal(app)
 
-	cmd.ConfigureStatus(app)
 	cmd.ConfigureCreateVirtualMachine(app)
+	cmd.ConfigureStatus(app)
+	cmd.ConfigureDestroyVM(app)
 
 	kingpin.MustParse(app.Parse(args))
 }

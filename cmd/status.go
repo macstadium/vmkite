@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"sync"
 
@@ -35,10 +34,10 @@ func cmdStatus(c *kingpin.ParseContext) error {
 	ctx := context.Background()
 
 	vs, err := vsphere.NewSession(ctx, vsphere.ConnectionParams{
-		Host:     os.Getenv("VS_HOST"),
-		User:     os.Getenv("VS_USER"),
-		Pass:     os.Getenv("VS_PASS"),
-		Insecure: os.Getenv("VS_INSECURE") == "true",
+		Host:     vsHost,
+		User:     vsUser,
+		Pass:     vsPass,
+		Insecure: vsInsecure,
 	})
 	if err != nil {
 		log.Fatal(err)

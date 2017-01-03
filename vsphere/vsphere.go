@@ -43,14 +43,6 @@ type Session struct {
 	finder     *find.Finder
 }
 
-// VirtualMachine wraps govmomi's object.VirtualMachine
-type VirtualMachine struct {
-	mo *object.VirtualMachine
-
-	HostSystemID string
-	Name         string
-}
-
 // VirtualMachineCreationParams is passed by calling code to Session.CreateVM()
 type VirtualMachineCreationParams struct {
 	DatastoreName     string
@@ -105,6 +97,23 @@ func (vs *Session) HostSystems(path string) ([]HostSystem, error) {
 	return list, nil
 }
 
+func (vs *Session) VirtualMachine(path string) (*VirtualMachine, error) {
+	finder, err := vs.getFinder()
+	if err != nil {
+		return nil, err
+	}
+	debugf("finder.VirtualMachineList(%v)", path)
+	vm, err := finder.VirtualMachine(vs.ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	return &VirtualMachine{
+		vs:   vs,
+		mo:   vm,
+		Name: vm.Name(),
+	}, nil
+}
+
 // VirtualMachines finds vSphere virtual machines for the given path.
 func (vs *Session) VirtualMachines(path string) ([]VirtualMachine, error) {
 	finder, err := vs.getFinder()
@@ -124,6 +133,7 @@ func (vs *Session) VirtualMachines(path string) ([]VirtualMachine, error) {
 			return nil, err
 		}
 		list = append(list, VirtualMachine{
+			vs:           vs,
 			mo:           vm,
 			Name:         vm.Name(),
 			HostSystemID: hs.Reference().Value,
