@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/lox/vmkite/vsphere"
@@ -67,24 +66,24 @@ func cmdCreateVM(c *kingpin.ParseContext) error {
 
 	vs, err := vsphere.NewSession(ctx, connectionParams)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	st := &state{}
 
 	if err = loadHostSystems(vs, st, clusterPath); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	if err = loadVirtualMachines(vs, st, vmPath); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	countManagedVMsPerHost(st, managedVMPrefix)
 
 	err = createVM(vs, st)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	return nil
