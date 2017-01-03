@@ -160,7 +160,6 @@ func (vs *Session) CreateVM(params VirtualMachineCreationParams) error {
 	}
 
 	debugf("CreateVM %s on %s (%s)", params.Name, params.HostSystem.ID, params.HostSystem.IP)
-
 	task, err := folder.CreateVM(vs.ctx, configSpec, resourcePool, params.HostSystem.mo)
 	if err != nil {
 		return err
@@ -170,9 +169,11 @@ func (vs *Session) CreateVM(params VirtualMachineCreationParams) error {
 		return err
 	}
 
+	vm, err := vs.VirtualMachine(folder.InventoryPath + "/" + params.Name)
+
 	defer func() {
 		if err != nil {
-			err := govc(vs.ctx, "vm.destroy", params.Name)
+			err := vm.Destroy(true)
 			if err != nil {
 				debugf("failed to destroy %v: %v", params.Name, err)
 			}
@@ -203,7 +204,7 @@ func (vs *Session) CreateVM(params VirtualMachineCreationParams) error {
 		return err
 	}
 
-	if err := govc(vs.ctx, "vm.power", "-on", params.Name); err != nil {
+	if err := vm.PowerOn(); err != nil {
 		return err
 	}
 	debugf("Success.")

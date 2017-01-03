@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"log"
 
 	"github.com/lox/vmkite/vsphere"
 
@@ -38,17 +37,7 @@ func cmdDestroyVM(c *kingpin.ParseContext) error {
 		return err
 	}
 
-	log.Printf("%#v\n", vm)
-
-	poweredOn, err := vm.IsPoweredOn()
-	if err != nil {
-		return err
-	}
-	if poweredOn {
-		vm.PowerOff()
-	}
-
-	if err = vm.Destroy(); err != nil {
+	if err = vm.Destroy(true); err != nil {
 		return err
 	}
 
