@@ -25,8 +25,8 @@ var (
 	vmNumCoresPerSocket int32
 )
 
-func ConfigureCreateVirtualMachine(app *kingpin.Application) {
-	cmd := app.Command("create-virtual-machine", "create a virtual machine")
+func ConfigureCreateVM(app *kingpin.Application) {
+	cmd := app.Command("create-vm", "create a virtual machine")
 
 	cmd.Flag("target-datastore", "name of datastore for new VM").
 		Default("PURE1-1").
@@ -60,10 +60,10 @@ func ConfigureCreateVirtualMachine(app *kingpin.Application) {
 		Default("1").
 		Int32Var(&vmNumCoresPerSocket)
 
-	cmd.Action(cmdCreateVirtualMachine)
+	cmd.Action(cmdCreateVM)
 }
 
-func cmdCreateVirtualMachine(c *kingpin.ParseContext) error {
+func cmdCreateVM(c *kingpin.ParseContext) error {
 	ctx := context.Background()
 
 	vs, err := vsphere.NewSession(ctx, vsphere.ConnectionParams{
