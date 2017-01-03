@@ -27,35 +27,35 @@ func ConfigureCreateVM(app *kingpin.Application) {
 	cmd := app.Command("create-vm", "create a virtual machine")
 
 	cmd.Flag("target-datastore", "name of datastore for new VM").
-		Default("PURE1-1").
+		Required().
 		StringVar(&vmDS)
 
 	cmd.Flag("source-datastore", "name of datastore holding source image").
-		Default("PURE1-1").
+		Required().
 		StringVar(&vmdkDS)
 
 	cmd.Flag("source-path", "path of source disk image").
-		Default("vmkite-test-2/vmkite-test-2.vmdk").
+		Required().
 		StringVar(&vmdkPath)
 
 	cmd.Flag("host-ip-prefix", "IP prefix of hosts to consider launching VMs on").
-		Default("10.92.157.").
+		Required().
 		StringVar(&hostIPPrefix)
 
 	cmd.Flag("vm-network-label", "name of network to connect VM to").
-		Default("dvPortGroup-Private-1").
+		Required().
 		StringVar(&vmNetwork)
 
 	cmd.Flag("vm-memory-mb", "Specify the memory size in MB of the new virtual machine").
-		Default("4096").
+		Required().
 		Int64Var(&vmMemoryMB)
 
 	cmd.Flag("vm-num-cpus", "Specify the number of the virtual CPUs of the new virtual machine").
-		Default("4").
+		Required().
 		Int32Var(&vmNumCPUs)
 
 	cmd.Flag("vm-num-cores-per-socket", "Number of cores used to distribute virtual CPUs among sockets in this virtual machine").
-		Default("1").
+		Required().
 		Int32Var(&vmNumCoresPerSocket)
 
 	cmd.Action(cmdCreateVM)
