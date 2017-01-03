@@ -141,49 +141,33 @@ func (vs *Session) VirtualMachines(path string) ([]VirtualMachine, error) {
 }
 
 // CreateVM launches a new macOS VM based on VirtualMachineCreationParams
-func (vs *Session) CreateVM(params VirtualMachineCreationParams) error {
+func (vs *Session) CreateVM(params VirtualMachineCreationParams) (*VirtualMachine, error) {
 	folder, err := vs.vmFolder()
 	if err != nil {
-		return err
+		return nil, err
 	}
-
 	resourcePool, err := params.HostSystem.mo.ResourcePool(vs.ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
 	configSpec, err := vs.createConfigSpec(params)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
 	debugf("CreateVM %s on %s (%s)", params.Name, params.HostSystem.ID, params.HostSystem.IP)
 	task, err := folder.CreateVM(vs.ctx, configSpec, resourcePool, params.HostSystem.mo)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	debugf("waiting for CreateVM %v", task)
 	if err := task.Wait(vs.ctx); err != nil {
-		return err
+		return nil, err
 	}
-
 	vm, err := vs.VirtualMachine(folder.InventoryPath + "/" + params.Name)
-
-	defer func() {
-		if err != nil {
-			err := vm.Destroy(true)
-			if err != nil {
-				debugf("failed to destroy %v: %v", params.Name, err)
-			}
-		}
-	}()
-
-	if err := vm.PowerOn(); err != nil {
-		return err
+	if err != nil {
+		return nil, err
 	}
-	debugf("Success.")
-
-	return nil
+	return vm, nil
 }
 
 func (vs *Session) vmFolder() (*object.Folder, error) {

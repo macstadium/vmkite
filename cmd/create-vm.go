@@ -92,13 +92,11 @@ func cmdCreateVM(c *kingpin.ParseContext) error {
 func createVM(vs *vsphere.Session, st *state) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-
 	hs, hostWhich, err := st.pickHost()
 	if err != nil {
 		return err
 	}
 	name := fmt.Sprintf("vmkite-macOS_10_%d-host-%s-%s", macOsMinor, hs.IP, hostWhich)
-
 	params := vsphere.VirtualMachineCreationParams{
 		DatastoreName:     vmDS,
 		HostSystem:        hs,
@@ -111,7 +109,11 @@ func createVM(vs *vsphere.Session, st *state) error {
 		SrcDiskDataStore:  vmdkDS,
 		SrcDiskPath:       vmdkPath,
 	}
-	if err := vs.CreateVM(params); err != nil {
+	vm, err := vs.CreateVM(params)
+	if err != nil {
+		return err
+	}
+	if err := vm.PowerOn(); err != nil {
 		return err
 	}
 	return nil
