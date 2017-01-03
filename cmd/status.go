@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	managedVMPrefix = "vmkite-"
+	managedVMPrefix = "vmkite-host-"
 )
 
 func ConfigureStatus(app *kingpin.Application) {

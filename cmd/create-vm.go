@@ -96,7 +96,7 @@ func createVM(vs *vsphere.Session, st *state) error {
 	if err != nil {
 		return err
 	}
-	name := fmt.Sprintf("vmkite-macOS_10_%d-host-%s-%s", macOsMinor, hs.IP, hostWhich)
+	name := fmt.Sprintf("vmkite-host-macOS_10_%d-%s-%s", macOsMinor, hs.IP, hostWhich)
 	params := vsphere.VirtualMachineCreationParams{
 		DatastoreName:     vmDS,
 		HostSystem:        hs,
@@ -146,7 +146,7 @@ func (st *state) pickHost() (hs vsphere.HostSystem, hostWhich string, err error)
 //
 // st.mu must be held
 func (st *state) whichAInUse(ip string) bool {
-	suffix := fmt.Sprintf("-host-%s-a", ip) // vmkite-macOS_10_%d-host-%s-%s
+	suffix := fmt.Sprintf("-%s-a", ip) // vmkite-host-macOS_10_%d-%s-%s
 	for _, vm := range st.VirtualMachines {
 		if strings.HasSuffix(vm.Name, suffix) {
 			return true
