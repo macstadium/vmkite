@@ -25,12 +25,7 @@ func ConfigureDestroyVM(app *kingpin.Application) {
 func cmdDestroyVM(c *kingpin.ParseContext) error {
 	ctx := context.Background()
 
-	vs, err := vsphere.NewSession(ctx, vsphere.ConnectionParams{
-		Host:     vsHost,
-		User:     vsUser,
-		Pass:     vsPass,
-		Insecure: vsInsecure,
-	})
+	vs, err := vsphere.NewSession(ctx, connectionParams)
 
 	vm, err := vs.VirtualMachine(vmPath + "/" + vmName)
 	if err != nil {

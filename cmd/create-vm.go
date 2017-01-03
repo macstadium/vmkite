@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/lox/vmkite/vsphere"
@@ -66,12 +65,7 @@ func ConfigureCreateVM(app *kingpin.Application) {
 func cmdCreateVM(c *kingpin.ParseContext) error {
 	ctx := context.Background()
 
-	vs, err := vsphere.NewSession(ctx, vsphere.ConnectionParams{
-		Host:     os.Getenv("VS_HOST"),
-		User:     os.Getenv("VS_USER"),
-		Pass:     os.Getenv("VS_PASS"),
-		Insecure: os.Getenv("VS_INSECURE") == "true",
-	})
+	vs, err := vsphere.NewSession(ctx, connectionParams)
 	if err != nil {
 		log.Fatal(err)
 	}

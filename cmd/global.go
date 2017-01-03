@@ -1,37 +1,36 @@
 package cmd
 
-import kingpin "gopkg.in/alecthomas/kingpin.v2"
+import (
+	"github.com/lox/vmkite/vsphere"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
+)
 
 var (
-	clusterPath string
-	vmPath      string
-
-	vsHost     string
-	vsUser     string
-	vsPass     string
-	vsInsecure bool
+	clusterPath      string
+	vmPath           string
+	connectionParams vsphere.ConnectionParams
 )
 
 func ConfigureGlobal(app *kingpin.Application) {
 	app.Flag("vsphere-host", "vSphere hostname or IP address").
 		Required().
 		Envar("VS_HOST").
-		StringVar(&vsHost)
+		StringVar(&connectionParams.Host)
 
 	app.Flag("vsphere-user", "vSphere username").
 		Required().
 		Envar("VS_USER").
-		StringVar(&vsUser)
+		StringVar(&connectionParams.User)
 
 	app.Flag("vsphere-pass", "vSphere password").
 		Required().
 		Envar("VS_PASS").
-		StringVar(&vsPass)
+		StringVar(&connectionParams.Pass)
 
 	app.Flag("vsphere-insecure", "vSphere certificate verification").
 		Default("false").
 		Envar("VS_INSECURE").
-		BoolVar(&vsInsecure)
+		BoolVar(&connectionParams.Insecure)
 
 	app.Flag("cluster-path", "path to the vSphere cluster").
 		Default("/MacStadium - Vegas/host/XSERVE_Cluster").
