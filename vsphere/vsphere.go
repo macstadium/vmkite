@@ -102,7 +102,7 @@ func (vs *Session) VirtualMachine(path string) (*VirtualMachine, error) {
 	if err != nil {
 		return nil, err
 	}
-	debugf("finder.VirtualMachineList(%v)", path)
+	debugf("finder.VirtualMachine(%v)", path)
 	vm, err := finder.VirtualMachine(vs.ctx, path)
 	if err != nil {
 		return nil, err
@@ -180,20 +180,6 @@ func (vs *Session) CreateVM(params VirtualMachineCreationParams) error {
 		}
 	}()
 
-	if err := govc(vs.ctx, "vm.change",
-		"-e", "smc.present=TRUE",
-		"-e", "ich7m.present=TRUE",
-		"-e", "firmware=efi",
-		"-e", "guestinfo.name="+params.Name,
-		"-vm", params.Name,
-	); err != nil {
-		return err
-	}
-
-	if err := govc(vs.ctx, "device.usb.add", "-vm", params.Name); err != nil {
-		return err
-	}
-
 	if err := govc(vs.ctx, "vm.disk.attach",
 		"-vm", params.Name,
 		"-link=true",
@@ -235,9 +221,20 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 		return
 	}
 
+	usb, err := vs.createUsbConfigSpec()
+	if err != nil {
+		return
+	}
+
 	deviceSpecs := []types.BaseVirtualDeviceConfigSpec{
 		eth,
 		disk,
+		usb,
+	}
+
+	extraConfig := []types.BaseOptionValue{
+		&types.OptionValue{Key: "ich7m.present", Value: "true"},
+		&types.OptionValue{Key: "smc.present", Value: "true"},
 	}
 
 	guestType, err := guestTypeForMinorVersion(params.MacOsMinorVersion)
@@ -260,6 +257,7 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 
 	cs = types.VirtualMachineConfigSpec{
 		DeviceChange:      deviceSpecs,
+		ExtraConfig:       extraConfig,
 		Files:             fileInfo,
 		GuestId:           guestType,
 		MemoryMB:          params.MemoryMB,
@@ -308,6 +306,18 @@ func (vs *Session) createDiskConfigSpec() (*types.VirtualDeviceConfigSpec, error
 	return &types.VirtualDeviceConfigSpec{
 		Operation: types.VirtualDeviceConfigSpecOperationAdd,
 		Device:    scsi,
+	}, nil
+}
+
+func (vs *Session) createUsbConfigSpec() (*types.VirtualDeviceConfigSpec, error) {
+	t := true
+	usb := &types.VirtualUSBController{
+		AutoConnectDevices: &t,
+		EhciEnabled:        &t,
+	}
+	return &types.VirtualDeviceConfigSpec{
+		Operation: types.VirtualDeviceConfigSpecOperationAdd,
+		Device:    usb,
 	}, nil
 }
 
