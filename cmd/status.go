@@ -30,9 +30,7 @@ type state struct {
 }
 
 func cmdStatus(c *kingpin.ParseContext) error {
-	ctx := context.Background()
-
-	vs, err := vsphere.NewSession(ctx, connectionParams)
+	vs, err := vsphere.NewSession(context.Background(), connectionParams)
 	if err != nil {
 		return err
 	}

@@ -43,16 +43,17 @@ type Session struct {
 
 // VirtualMachineCreationParams is passed by calling code to Session.CreateVM()
 type VirtualMachineCreationParams struct {
-	DatastoreName     string
-	HostSystem        HostSystem
-	MacOsMinorVersion int
-	MemoryMB          int64
-	Name              string
-	NetworkLabel      string
-	NumCPUs           int32
-	NumCoresPerSocket int32
-	SrcDiskDataStore  string
-	SrcDiskPath       string
+	BuildkiteAgentToken string
+	DatastoreName       string
+	HostSystem          HostSystem
+	MacOsMinorVersion   int
+	MemoryMB            int64
+	Name                string
+	NetworkLabel        string
+	NumCPUs             int32
+	NumCoresPerSocket   int32
+	SrcDiskDataStore    string
+	SrcDiskPath         string
 }
 
 // NewSession logs in to a new Session based on ConnectionParams
@@ -208,6 +209,12 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 		return
 	}
 
+	extraConfig := []types.BaseOptionValue{
+		&types.OptionValue{Key: "guestinfo.vmkite-buildkite-agent-token", Value: params.BuildkiteAgentToken},
+		&types.OptionValue{Key: "guestinfo.vmkite-name", Value: params.Name},
+		&types.OptionValue{Key: "guestinfo.vmkite-vmdk", Value: params.SrcDiskPath},
+	}
+
 	guestType, err := guestTypeForMinorVersion(params.MacOsMinorVersion)
 	if err != nil {
 		return
@@ -229,6 +236,7 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 	t := true
 	cs = types.VirtualMachineConfigSpec{
 		DeviceChange:        deviceChange,
+		ExtraConfig:         extraConfig,
 		Files:               fileInfo,
 		GuestId:             guestType,
 		MemoryMB:            params.MemoryMB,
@@ -339,5 +347,5 @@ func (vs *Session) getFinder() (*find.Finder, error) {
 }
 
 func debugf(format string, data ...interface{}) {
-	log.Printf(format, data...)
+	log.Printf("[vsphere] "+format, data...)
 }

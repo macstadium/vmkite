@@ -1,4 +1,4 @@
-vmkite: *.go cmd/*.go vsphere/*.go
+vmkite: *.go buildkite/*.go cmd/*.go vsphere/*.go
 	go build
 
 .PHONY: clean

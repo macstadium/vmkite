@@ -26,6 +26,20 @@ var (
 func ConfigureCreateVM(app *kingpin.Application) {
 	cmd := app.Command("create-vm", "create a virtual machine")
 
+	addCreateVMFlags(cmd)
+
+	cmd.Flag("source-path", "path of source disk image").
+		Required().
+		StringVar(&vmdkPath)
+
+	cmd.Flag("buildkite-agent-token", "Buildkite Agent Token").
+		Required().
+		StringVar(&buildkiteAgentToken)
+
+	cmd.Action(cmdCreateVM)
+}
+
+func addCreateVMFlags(cmd *kingpin.CmdClause) {
 	cmd.Flag("target-datastore", "name of datastore for new VM").
 		Required().
 		StringVar(&vmDS)
@@ -33,10 +47,6 @@ func ConfigureCreateVM(app *kingpin.Application) {
 	cmd.Flag("source-datastore", "name of datastore holding source image").
 		Required().
 		StringVar(&vmdkDS)
-
-	cmd.Flag("source-path", "path of source disk image").
-		Required().
-		StringVar(&vmdkPath)
 
 	cmd.Flag("host-ip-prefix", "IP prefix of hosts to consider launching VMs on").
 		Required().
@@ -57,8 +67,6 @@ func ConfigureCreateVM(app *kingpin.Application) {
 	cmd.Flag("vm-num-cores-per-socket", "Number of cores used to distribute virtual CPUs among sockets in this virtual machine").
 		Required().
 		Int32Var(&vmNumCoresPerSocket)
-
-	cmd.Action(cmdCreateVM)
 }
 
 func cmdCreateVM(c *kingpin.ParseContext) error {
@@ -98,16 +106,17 @@ func createVM(vs *vsphere.Session, st *state) error {
 	}
 	name := fmt.Sprintf("vmkite-host-macOS_10_%d-%s-%s", macOsMinor, hs.IP, hostWhich)
 	params := vsphere.VirtualMachineCreationParams{
-		DatastoreName:     vmDS,
-		HostSystem:        hs,
-		MacOsMinorVersion: macOsMinor,
-		MemoryMB:          vmMemoryMB,
-		Name:              name,
-		NetworkLabel:      vmNetwork,
-		NumCPUs:           vmNumCPUs,
-		NumCoresPerSocket: vmNumCoresPerSocket,
-		SrcDiskDataStore:  vmdkDS,
-		SrcDiskPath:       vmdkPath,
+		BuildkiteAgentToken: buildkiteAgentToken,
+		DatastoreName:       vmDS,
+		HostSystem:          hs,
+		MacOsMinorVersion:   macOsMinor,
+		MemoryMB:            vmMemoryMB,
+		Name:                name,
+		NetworkLabel:        vmNetwork,
+		NumCPUs:             vmNumCPUs,
+		NumCoresPerSocket:   vmNumCoresPerSocket,
+		SrcDiskDataStore:    vmdkDS,
+		SrcDiskPath:         vmdkPath,
 	}
 	vm, err := vs.CreateVM(params)
 	if err != nil {
