@@ -1,9 +1,17 @@
 package cmd
 
 import (
+	"sync"
+
 	"github.com/lox/vmkite/vsphere"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
+
+type state struct {
+	mu sync.Mutex `json:"-"`
+
+	VirtualMachines []vsphere.VirtualMachine
+}
 
 var (
 	clusterPath      string

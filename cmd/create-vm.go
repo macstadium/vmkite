@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/lox/vmkite/vsphere"
 
@@ -13,10 +13,10 @@ import (
 
 var (
 	macOsMinor          = 11
+	vmClusterPath       string
 	vmDS                string
 	vmdkDS              string
 	vmdkPath            string
-	hostIPPrefix        string
 	vmNetwork           string
 	vmMemoryMB          int64
 	vmNumCPUs           int32
@@ -48,9 +48,9 @@ func addCreateVMFlags(cmd *kingpin.CmdClause) {
 		Required().
 		StringVar(&vmdkDS)
 
-	cmd.Flag("host-ip-prefix", "IP prefix of hosts to consider launching VMs on").
+	cmd.Flag("vm-cluster-path", "path to the cluster").
 		Required().
-		StringVar(&hostIPPrefix)
+		StringVar(&vmClusterPath)
 
 	cmd.Flag("vm-network-label", "name of network to connect VM to").
 		Required().
@@ -79,16 +79,6 @@ func cmdCreateVM(c *kingpin.ParseContext) error {
 
 	st := &state{}
 
-	if err = loadHostSystems(vs, st, clusterPath); err != nil {
-		return err
-	}
-
-	if err = loadVirtualMachines(vs, st, vmPath); err != nil {
-		return err
-	}
-
-	countManagedVMsPerHost(st, managedVMPrefix)
-
 	err = createVM(vs, st)
 	if err != nil {
 		return err
@@ -100,15 +90,12 @@ func cmdCreateVM(c *kingpin.ParseContext) error {
 func createVM(vs *vsphere.Session, st *state) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	hs, hostWhich, err := st.pickHost()
-	if err != nil {
-		return err
-	}
-	name := fmt.Sprintf("vmkite-host-macOS_10_%d-%s-%s", macOsMinor, hs.IP, hostWhich)
+	ts := time.Now().Format("200612-150405")
+	name := fmt.Sprintf("vmkite-host-macOS_10_%d-%s", macOsMinor, ts)
 	params := vsphere.VirtualMachineCreationParams{
 		BuildkiteAgentToken: buildkiteAgentToken,
+		ClusterPath:         vmClusterPath,
 		DatastoreName:       vmDS,
-		HostSystem:          hs,
 		MacOsMinorVersion:   macOsMinor,
 		MemoryMB:            vmMemoryMB,
 		Name:                name,
@@ -126,28 +113,6 @@ func createVM(vs *vsphere.Session, st *state) error {
 		return err
 	}
 	return nil
-}
-
-// st.mu must be held.
-func (st *state) pickHost() (hs vsphere.HostSystem, hostWhich string, err error) {
-	for hostID, inUse := range st.HostManagedVMCount {
-		hs = st.HostSystems[hostID]
-		ip := hs.IP
-		if !strings.HasPrefix(ip, hostIPPrefix) {
-			continue
-		}
-		if inUse >= 2 {
-			// Apple virtualization license policy.
-			continue
-		}
-		hostWhich = "a" // unless in use
-		if st.whichAInUse(ip) {
-			hostWhich = "b"
-		}
-		return
-	}
-	err = errors.New("no usable host found")
-	return
 }
 
 // whichAInUse reports whether a VM is running on the provided hostIP named

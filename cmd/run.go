@@ -63,16 +63,6 @@ func handleJob(job buildkite.VmkiteJob, vs *vsphere.Session) (err error) {
 
 	st := &state{}
 
-	if err = loadHostSystems(vs, st, clusterPath); err != nil {
-		return err
-	}
-
-	if err = loadVirtualMachines(vs, st, vmPath); err != nil {
-		return err
-	}
-
-	countManagedVMsPerHost(st, managedVMPrefix)
-
 	err = createVM(vs, st)
 	if err != nil {
 		return err

@@ -27,7 +27,6 @@ func run(args []string, exit func(code int)) {
 	cmd.ConfigureCreateVM(app)
 	cmd.ConfigureDestroyVM(app)
 	cmd.ConfigureRun(app)
-	cmd.ConfigureStatus(app)
 
 	kingpin.MustParse(app.Parse(args))
 }

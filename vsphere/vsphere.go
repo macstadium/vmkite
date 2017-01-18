@@ -24,14 +24,6 @@ type ConnectionParams struct {
 	Insecure bool
 }
 
-// HostSystem wraps govmomi's object.HostSystem
-type HostSystem struct {
-	mo *object.HostSystem
-
-	ID string
-	IP string
-}
-
 // Session holds state for a vSphere session;
 // client connection, context, session-cached values like finder etc.
 type Session struct {
@@ -44,8 +36,8 @@ type Session struct {
 // VirtualMachineCreationParams is passed by calling code to Session.CreateVM()
 type VirtualMachineCreationParams struct {
 	BuildkiteAgentToken string
+	ClusterPath         string
 	DatastoreName       string
-	HostSystem          HostSystem
 	MacOsMinorVersion   int
 	MemoryMB            int64
 	Name                string
@@ -74,28 +66,6 @@ func NewSession(ctx context.Context, cp ConnectionParams) (*Session, error) {
 	}, nil
 }
 
-// HostSystems finds vSphere hosts for the given path
-func (vs *Session) HostSystems(path string) ([]HostSystem, error) {
-	finder, err := vs.getFinder()
-	if err != nil {
-		return nil, err
-	}
-	debugf("finder.HostSystemList(%v)", path)
-	results, err := finder.HostSystemList(vs.ctx, path)
-	if err != nil {
-		return nil, err
-	}
-	list := make([]HostSystem, 0)
-	for _, hs := range results {
-		list = append(list, HostSystem{
-			mo: hs,
-			IP: hs.Name(),
-			ID: hs.Reference().Value,
-		})
-	}
-	return list, nil
-}
-
 func (vs *Session) VirtualMachine(path string) (*VirtualMachine, error) {
 	finder, err := vs.getFinder()
 	if err != nil {
@@ -113,50 +83,34 @@ func (vs *Session) VirtualMachine(path string) (*VirtualMachine, error) {
 	}, nil
 }
 
-// VirtualMachines finds vSphere virtual machines for the given path.
-func (vs *Session) VirtualMachines(path string) ([]VirtualMachine, error) {
+// CreateVM launches a new macOS VM based on VirtualMachineCreationParams
+func (vs *Session) CreateVM(params VirtualMachineCreationParams) (*VirtualMachine, error) {
 	finder, err := vs.getFinder()
 	if err != nil {
 		return nil, err
 	}
-	debugf("finder.VirtualMachineList(%v)", path)
-	results, err := finder.VirtualMachineList(vs.ctx, path)
-	if err != nil {
-		return nil, err
-	}
-	list := make([]VirtualMachine, 0)
-	for _, vm := range results {
-		debugf("vm.HostSystem() for %s", vm.Name())
-		hs, err := vm.HostSystem(vs.ctx)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, VirtualMachine{
-			vs:           vs,
-			mo:           vm,
-			Name:         vm.Name(),
-			HostSystemID: hs.Reference().Value,
-		})
-	}
-	return list, nil
-}
-
-// CreateVM launches a new macOS VM based on VirtualMachineCreationParams
-func (vs *Session) CreateVM(params VirtualMachineCreationParams) (*VirtualMachine, error) {
 	folder, err := vs.vmFolder()
 	if err != nil {
 		return nil, err
 	}
-	resourcePool, err := params.HostSystem.mo.ResourcePool(vs.ctx)
+	debugf("finder.ClusterComputeResource(%s)", params.ClusterPath)
+	cluster, err := finder.ClusterComputeResource(vs.ctx, params.ClusterPath)
 	if err != nil {
 		return nil, err
 	}
+	debugf("  %v", cluster)
+	debugf("cluster.ResourcePool()")
+	resourcePool, err := cluster.ResourcePool(vs.ctx)
+	if err != nil {
+		return nil, err
+	}
+	debugf("  %v", resourcePool)
 	configSpec, err := vs.createConfigSpec(params)
 	if err != nil {
 		return nil, err
 	}
-	debugf("CreateVM %s on %s (%s)", params.Name, params.HostSystem.ID, params.HostSystem.IP)
-	task, err := folder.CreateVM(vs.ctx, configSpec, resourcePool, params.HostSystem.mo)
+	debugf("CreateVM %s on %s", params.Name, resourcePool)
+	task, err := folder.CreateVM(vs.ctx, configSpec, resourcePool, nil)
 	if err != nil {
 		return nil, err
 	}
