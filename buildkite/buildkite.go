@@ -7,13 +7,18 @@ import (
 	"gopkg.in/buildkite/go-buildkite.v2/buildkite"
 )
 
+type Session struct {
+	ApiToken string
+	Org      string
+}
+
 type VmkiteJob struct {
 	ID   string
 	VMDK string
 }
 
-func VmkiteJobs(token, org string) ([]VmkiteJob, error) {
-	config, err := buildkite.NewTokenConfig(token, false)
+func (bk *Session) VmkiteJobs() ([]VmkiteJob, error) {
+	config, err := buildkite.NewTokenConfig(bk.ApiToken, false)
 	if err != nil {
 		return nil, err
 	}
@@ -21,8 +26,8 @@ func VmkiteJobs(token, org string) ([]VmkiteJob, error) {
 	buildListOptions := buildkite.BuildsListOptions{
 		State: []string{"scheduled", "running"},
 	}
-	debugf("Builds.ListByOrg(%s, ...)", org)
-	builds, _, err := client.Builds.ListByOrg(org, &buildListOptions)
+	debugf("Builds.ListByOrg(%s, ...)", bk.Org)
+	builds, _, err := client.Builds.ListByOrg(bk.Org, &buildListOptions)
 	if err != nil {
 		return nil, err
 	}

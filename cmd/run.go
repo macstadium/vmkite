@@ -2,12 +2,10 @@ package cmd
 
 import (
 	"context"
-	"log"
 
 	"github.com/lox/vmkite/buildkite"
-	"github.com/lox/vmkite/creator"
+	"github.com/lox/vmkite/runner"
 	"github.com/lox/vmkite/vsphere"
-
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -42,24 +40,10 @@ func cmdRun(c *kingpin.ParseContext) error {
 	if err != nil {
 		return err
 	}
-	// TODO: long-running polling
-	jobs, err := buildkite.VmkiteJobs(
-		buildkiteApiToken,
-		buildkiteOrg,
-	)
-	if err != nil {
-		return err
+	bk := &buildkite.Session{
+		ApiToken: buildkiteApiToken,
+		Org:      buildkiteOrg,
 	}
-	for _, j := range jobs {
-		if err := handleJob(j, vs); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func handleJob(job buildkite.VmkiteJob, vs *vsphere.Session) (err error) {
-	log.Printf("job %s => %s", job.ID, job.VMDK)
 
 	params := vsphere.VirtualMachineCreationParams{
 		BuildkiteAgentToken: buildkiteAgentToken,
@@ -67,18 +51,13 @@ func handleJob(job buildkite.VmkiteJob, vs *vsphere.Session) (err error) {
 		DatastoreName:       vmDS,
 		MacOsMinorVersion:   macOsMinor,
 		MemoryMB:            vmMemoryMB,
-		Name:                "",
+		Name:                "", // automatic
 		NetworkLabel:        vmNetwork,
 		NumCPUs:             vmNumCPUs,
 		NumCoresPerSocket:   vmNumCoresPerSocket,
 		SrcDiskDataStore:    vmdkDS,
-		SrcDiskPath:         job.VMDK,
+		SrcDiskPath:         "", // per-job
 	}
 
-	err = creator.CreateVM(vs, params)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return runner.RunOnce(vs, bk, params)
 }
