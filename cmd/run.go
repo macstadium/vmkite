@@ -3,9 +3,9 @@ package cmd
 import (
 	"context"
 
-	"github.com/lox/vmkite/buildkite"
-	"github.com/lox/vmkite/runner"
-	"github.com/lox/vmkite/vsphere"
+	"github.com/macstadium/vmkite/buildkite"
+	"github.com/macstadium/vmkite/runner"
+	"github.com/macstadium/vmkite/vsphere"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 

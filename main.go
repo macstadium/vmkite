@@ -5,7 +5,7 @@ import (
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/lox/vmkite/cmd"
+	"github.com/macstadium/vmkite/cmd"
 )
 
 func main() {
