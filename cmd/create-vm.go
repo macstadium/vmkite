@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/lox/vmkite/vsphere"
@@ -77,9 +76,7 @@ func cmdCreateVM(c *kingpin.ParseContext) error {
 		return err
 	}
 
-	st := &state{}
-
-	err = createVM(vs, st)
+	err = createVM(vs)
 	if err != nil {
 		return err
 	}
@@ -87,9 +84,7 @@ func cmdCreateVM(c *kingpin.ParseContext) error {
 	return nil
 }
 
-func createVM(vs *vsphere.Session, st *state) error {
-	st.mu.Lock()
-	defer st.mu.Unlock()
+func createVM(vs *vsphere.Session) error {
 	ts := time.Now().Format("200612-150405")
 	name := fmt.Sprintf("vmkite-host-macOS_10_%d-%s", macOsMinor, ts)
 	params := vsphere.VirtualMachineCreationParams{
@@ -113,18 +108,4 @@ func createVM(vs *vsphere.Session, st *state) error {
 		return err
 	}
 	return nil
-}
-
-// whichAInUse reports whether a VM is running on the provided hostIP named
-// with suffix "a".
-//
-// st.mu must be held
-func (st *state) whichAInUse(ip string) bool {
-	suffix := fmt.Sprintf("-%s-a", ip) // vmkite-host-macOS_10_%d-%s-%s
-	for _, vm := range st.VirtualMachines {
-		if strings.HasSuffix(vm.Name, suffix) {
-			return true
-		}
-	}
-	return false
 }

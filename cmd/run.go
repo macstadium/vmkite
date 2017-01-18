@@ -61,9 +61,7 @@ func handleJob(job buildkite.VmkiteJob, vs *vsphere.Session) (err error) {
 	log.Printf("job %s => %s", job.ID, job.VMDK)
 	vmdkPath = job.VMDK
 
-	st := &state{}
-
-	err = createVM(vs, st)
+	err = createVM(vs)
 	if err != nil {
 		return err
 	}

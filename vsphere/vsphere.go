@@ -98,13 +98,11 @@ func (vs *Session) CreateVM(params VirtualMachineCreationParams) (*VirtualMachin
 	if err != nil {
 		return nil, err
 	}
-	debugf("  %v", cluster)
 	debugf("cluster.ResourcePool()")
 	resourcePool, err := cluster.ResourcePool(vs.ctx)
 	if err != nil {
 		return nil, err
 	}
-	debugf("  %v", resourcePool)
 	configSpec, err := vs.createConfigSpec(params)
 	if err != nil {
 		return nil, err
