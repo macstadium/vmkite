@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 
-	"github.com/lox/vmkite/creator"
-	"github.com/lox/vmkite/vsphere"
+	"github.com/macstadium/vmkite/creator"
+	"github.com/macstadium/vmkite/vsphere"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )

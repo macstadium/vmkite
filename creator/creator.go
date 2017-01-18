@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lox/vmkite/vsphere"
+	"github.com/macstadium/vmkite/vsphere"
 )
 
 func CreateVM(vs *vsphere.Session, params vsphere.VirtualMachineCreationParams) error {

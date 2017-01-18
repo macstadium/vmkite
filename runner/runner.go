@@ -3,9 +3,9 @@ package runner
 import (
 	"log"
 
-	"github.com/lox/vmkite/buildkite"
-	"github.com/lox/vmkite/creator"
-	"github.com/lox/vmkite/vsphere"
+	"github.com/macstadium/vmkite/buildkite"
+	"github.com/macstadium/vmkite/creator"
+	"github.com/macstadium/vmkite/vsphere"
 )
 
 func RunOnce(vs *vsphere.Session, bk *buildkite.Session, params vsphere.VirtualMachineCreationParams) error {
