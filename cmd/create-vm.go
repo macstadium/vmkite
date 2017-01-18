@@ -2,9 +2,8 @@ package cmd
 
 import (
 	"context"
-	"fmt"
-	"time"
 
+	"github.com/lox/vmkite/creator"
 	"github.com/lox/vmkite/vsphere"
 
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -76,36 +75,24 @@ func cmdCreateVM(c *kingpin.ParseContext) error {
 		return err
 	}
 
-	err = createVM(vs)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func createVM(vs *vsphere.Session) error {
-	ts := time.Now().Format("200612-150405")
-	name := fmt.Sprintf("vmkite-host-macOS_10_%d-%s", macOsMinor, ts)
 	params := vsphere.VirtualMachineCreationParams{
 		BuildkiteAgentToken: buildkiteAgentToken,
 		ClusterPath:         vmClusterPath,
 		DatastoreName:       vmDS,
 		MacOsMinorVersion:   macOsMinor,
 		MemoryMB:            vmMemoryMB,
-		Name:                name,
+		Name:                "",
 		NetworkLabel:        vmNetwork,
 		NumCPUs:             vmNumCPUs,
 		NumCoresPerSocket:   vmNumCoresPerSocket,
 		SrcDiskDataStore:    vmdkDS,
 		SrcDiskPath:         vmdkPath,
 	}
-	vm, err := vs.CreateVM(params)
+
+	err = creator.CreateVM(vs, params)
 	if err != nil {
 		return err
 	}
-	if err := vm.PowerOn(); err != nil {
-		return err
-	}
+
 	return nil
 }
