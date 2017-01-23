@@ -28,10 +28,6 @@ func ConfigureGlobal(app *kingpin.Application) {
 		Default("false").
 		BoolVar(&connectionParams.Insecure)
 
-	app.Flag("cluster-path", "path to the vSphere cluster").
-		Required().
-		StringVar(&clusterPath)
-
 	app.Flag("vm-path", "path to folder containing virtual machines").
 		Required().
 		StringVar(&vmPath)
