@@ -5,11 +5,9 @@ import "github.com/vmware/govmomi/object"
 // VirtualMachine wraps govmomi's object.VirtualMachine
 type VirtualMachine struct {
 	vs *Session
-
 	mo *object.VirtualMachine
 
-	HostSystemID string
-	Name         string
+	Name string
 }
 
 func (vm *VirtualMachine) Destroy(powerOff bool) error {

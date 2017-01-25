@@ -89,7 +89,7 @@ func cmdCreateVM(c *kingpin.ParseContext) error {
 		SrcDiskPath:         vmdkPath,
 	}
 
-	err = creator.CreateVM(vs, params)
+	_, err = creator.CreateVM(vs, params)
 	if err != nil {
 		return err
 	}

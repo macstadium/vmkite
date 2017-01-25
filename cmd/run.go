@@ -13,6 +13,7 @@ var (
 	buildkiteApiToken   string
 	buildkiteAgentToken string
 	buildkiteOrg        string
+	runOnce             bool
 )
 
 func ConfigureRun(app *kingpin.Application) {
@@ -29,6 +30,9 @@ func ConfigureRun(app *kingpin.Application) {
 	cmd.Flag("buildkite-org", "Buildkite organization slug").
 		Required().
 		StringVar(&buildkiteOrg)
+
+	cmd.Flag("once", "Run once, launch for waiting jobs, exit").
+		BoolVar(&runOnce)
 
 	addCreateVMFlags(cmd)
 
@@ -59,5 +63,9 @@ func cmdRun(c *kingpin.ParseContext) error {
 		SrcDiskPath:         "", // per-job
 	}
 
-	return runner.RunOnce(vs, bk, params)
+	if runOnce {
+		return runner.RunOnce(vs, bk, params)
+	} else {
+		return runner.Run(vs, bk, params)
+	}
 }
