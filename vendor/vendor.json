@@ -21,6 +21,12 @@
 			"revisionTime": "2015-10-22T06:55:26Z"
 		},
 		{
+			"checksumSHA1": "p3IB18uJRs4dL2K5yx24MrLYE9A=",
+			"path": "github.com/google/go-querystring/query",
+			"revision": "53e6ce116135b80d037921a7fdd5138cf32d7a8a",
+			"revisionTime": "2017-01-11T10:11:55Z"
+		},
+		{
 			"checksumSHA1": "V1sVqbL6864Ju8cU66Sk1NxTeQc=",
 			"path": "github.com/vmware/govmomi",
 			"revision": "45a5351755f12668ca9a0b63f1d1c906431157f6",
@@ -115,7 +121,13 @@
 			"path": "gopkg.in/alecthomas/kingpin.v2",
 			"revision": "e9044be3ab2a8e11d4e1f418d12f0790d57e8d70",
 			"revisionTime": "2016-08-29T10:30:05Z"
+		},
+		{
+			"checksumSHA1": "APcxOX4EzPP+WRk4PgnwQqFSap8=",
+			"path": "gopkg.in/buildkite/go-buildkite.v2/buildkite",
+			"revision": "2a542e6524708fe428e62b65a0a5fc969a82b2e0",
+			"revisionTime": "2016-03-31T08:07:36Z"
 		}
 	],
-	"rootPath": "github.com/lox/vmkite"
+	"rootPath": "github.com/macstadium/vmkite"
 }
