@@ -1,5 +1,6 @@
 vmkite: *.go buildkite/*.go cmd/*.go creator/*.go runner/*.go vsphere/*.go
-	go build
+	go install -a
+	go build -v
 
 .PHONY: clean
 clean:

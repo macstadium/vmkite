@@ -167,11 +167,6 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 		&types.OptionValue{Key: "guestinfo.vmkite-vmdk", Value: params.SrcDiskPath},
 	}
 
-	guestType, err := inferGuestType(params.GuestType)
-	if err != nil {
-		return
-	}
-
 	finder, err := vs.getFinder()
 	if err != nil {
 		return
@@ -190,7 +185,7 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 		DeviceChange:        deviceChange,
 		ExtraConfig:         extraConfig,
 		Files:               fileInfo,
-		GuestId:             guestType,
+		GuestId:             params.GuestType,
 		MemoryMB:            params.MemoryMB,
 		Name:                params.Name,
 		NestedHVEnabled:     &t,
