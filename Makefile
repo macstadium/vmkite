@@ -8,4 +8,4 @@ clean:
 .PHONY: release
 release:
 	go get github.com/mitchellh/gox
-	gox -osarch="linux/amd64 darwin/amd64 windows/amd64 windows/386"
+	gox -output="bin/{{.Dir}}_{{.OS}}_{{.Arch}}" -os="linux windows darwin"
