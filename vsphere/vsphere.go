@@ -135,7 +135,6 @@ func (vs *Session) vmFolder() (*object.Folder, error) {
 }
 
 func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs types.VirtualMachineConfigSpec, err error) {
-
 	devices, err := addEthernet(nil, vs, params.NetworkLabel)
 	if err != nil {
 		return
@@ -238,21 +237,28 @@ func addDisk(devices object.VirtualDeviceList, vs *Session, params VirtualMachin
 	if err != nil {
 		return nil, err
 	}
+
 	debugf("finder.Datastore(%s)", params.SrcDiskDataStore)
 	diskDatastore, err := finder.Datastore(vs.ctx, params.SrcDiskDataStore)
 	if err != nil {
 		return nil, err
 	}
+
 	controller, err := devices.FindDiskController("scsi")
 	if err != nil {
 		return nil, err
 	}
-	ds := diskDatastore.Reference()
-	path := diskDatastore.Path(params.SrcDiskPath)
-	disk := devices.CreateDisk(controller, ds, path)
+
+	disk := devices.CreateDisk(
+		controller,
+		diskDatastore.Reference(),
+		diskDatastore.Path(params.SrcDiskPath),
+	)
+
 	backing := disk.Backing.(*types.VirtualDiskFlatVer2BackingInfo)
+	backing.ThinProvisioned = types.NewBool(true)
 	backing.DiskMode = string(types.VirtualDiskModeIndependent_nonpersistent)
-	disk = devices.ChildDisk(disk)
+
 	return append(devices, disk), nil
 }
 
