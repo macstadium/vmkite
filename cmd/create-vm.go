@@ -18,6 +18,7 @@ var (
 	vmMemoryMB          int64
 	vmNumCPUs           int32
 	vmNumCoresPerSocket int32
+	vmGuestId           string
 )
 
 func ConfigureCreateVM(app *kingpin.Application) {
@@ -65,9 +66,9 @@ func addCreateVMFlags(cmd *kingpin.CmdClause) {
 		Required().
 		Int32Var(&vmNumCoresPerSocket)
 
-	cmd.Flag("vm-guest-type", "The guest type of the vm").
+	cmd.Flag("vm-guest-id", "The guestid of the vm").
 		Default("darwin14_64Guest").
-		StringVar(&vmClusterPath)
+		StringVar(&vmGuestId)
 }
 
 func cmdCreateVM(c *kingpin.ParseContext) error {

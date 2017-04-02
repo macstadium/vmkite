@@ -13,8 +13,8 @@ type Session struct {
 }
 
 type VmkiteJob struct {
-	ID   string
-	VMDK string
+	ID       string
+	Metadata VmkiteMetadata
 }
 
 func (bk *Session) VmkiteJobs() ([]VmkiteJob, error) {
@@ -34,22 +34,39 @@ func (bk *Session) VmkiteJobs() ([]VmkiteJob, error) {
 	jobs := make([]VmkiteJob, 0)
 	for _, build := range builds {
 		for _, job := range build.Jobs {
-			if vmdk := vmdkFromAgentQueryRules(job.AgentQueryRules); vmdk != "" {
-				jobs = append(jobs, VmkiteJob{ID: *job.ID, VMDK: vmdk})
+			metadata := parseAgentQueryRules(job.AgentQueryRules)
+			if metadata.GuestID != "" && metadata.VMDK != "" {
+				jobs = append(jobs, VmkiteJob{
+					ID:       *job.ID,
+					Metadata: metadata,
+				})
 			}
 		}
 	}
 	return jobs, nil
 }
 
-func vmdkFromAgentQueryRules(rules []string) string {
+type VmkiteMetadata struct {
+	VMDK    string
+	GuestID string
+}
+
+func parseAgentQueryRules(rules []string) VmkiteMetadata {
+	debugf("parsing agent query rules: %#v", rules)
+
+	metadata := VmkiteMetadata{}
 	for _, r := range rules {
 		parts := strings.SplitN(r, "=", 2)
-		if len(parts) == 2 && parts[0] == "vmkite-vmdk" {
-			return parts[1]
+		if len(parts) == 2 {
+			switch parts[0] {
+			case "vmkite-vmdk":
+				metadata.VMDK = parts[1]
+			case "vmkite-guestid":
+				metadata.GuestID = parts[1]
+			}
 		}
 	}
-	return ""
+	return metadata
 }
 
 func debugf(format string, data ...interface{}) {

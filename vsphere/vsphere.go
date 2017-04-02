@@ -38,7 +38,7 @@ type VirtualMachineCreationParams struct {
 	BuildkiteAgentToken string
 	ClusterPath         string
 	DatastoreName       string
-	GuestType           string
+	GuestID             string
 	MemoryMB            int64
 	Name                string
 	NetworkLabel        string
@@ -185,7 +185,7 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 		DeviceChange:        deviceChange,
 		ExtraConfig:         extraConfig,
 		Files:               fileInfo,
-		GuestId:             params.GuestType,
+		GuestId:             params.GuestID,
 		MemoryMB:            params.MemoryMB,
 		Name:                params.Name,
 		NestedHVEnabled:     &t,
