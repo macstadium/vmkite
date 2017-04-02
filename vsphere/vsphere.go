@@ -38,7 +38,7 @@ type VirtualMachineCreationParams struct {
 	BuildkiteAgentToken string
 	ClusterPath         string
 	DatastoreName       string
-	MacOsMinorVersion   int
+	GuestType           string
 	MemoryMB            int64
 	Name                string
 	NetworkLabel        string
@@ -167,7 +167,7 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 		&types.OptionValue{Key: "guestinfo.vmkite-vmdk", Value: params.SrcDiskPath},
 	}
 
-	guestType, err := guestTypeForMinorVersion(params.MacOsMinorVersion)
+	guestType, err := inferGuestType(params.GuestType)
 	if err != nil {
 		return
 	}
@@ -265,20 +265,6 @@ func addUSB(devices object.VirtualDeviceList) (object.VirtualDeviceList, error) 
 	t := true
 	usb := &types.VirtualUSBController{AutoConnectDevices: &t, EhciEnabled: &t}
 	return append(devices, usb), nil
-}
-
-func guestTypeForMinorVersion(minor int) (t string, err error) {
-	switch minor {
-	case 8:
-		t = "darwin12_64Guest"
-	case 9:
-		t = "darwin13_64Guest"
-	case 10, 11:
-		t = "darwin14_64Guest"
-	default:
-		err = fmt.Errorf("unknown VM guest type for macOS 10.%d", minor)
-	}
-	return
 }
 
 func (vs *Session) getFinder() (*find.Finder, error) {

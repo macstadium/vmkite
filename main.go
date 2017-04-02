@@ -15,7 +15,7 @@ func main() {
 func run(args []string, exit func(code int)) {
 	app := kingpin.New(
 		"vmkite",
-		"Manage VMware vSphere macOS VMs for CI builds",
+		"Spawn and manage ephemeral VMware VMs for Buildkite builds",
 	)
 
 	app.Writer(os.Stdout)
