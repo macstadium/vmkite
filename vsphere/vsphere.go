@@ -212,16 +212,14 @@ func addEthernet(devices object.VirtualDeviceList, vs *Session, label string) (o
 	if err != nil {
 		return nil, err
 	}
-	eth := &types.VirtualE1000{
-		types.VirtualEthernetCard{
-			VirtualDevice: types.VirtualDevice{
-				Key:     -1,
-				Backing: backing,
-			},
-			AddressType: string(types.VirtualEthernetCardMacTypeGenerated),
-		},
+	device, err := object.EthernetCardTypes().CreateEthernetCard("vmxnet3", backing)
+	if err != nil {
+		return nil, err
 	}
-	return append(devices, eth), nil
+	card := device.(types.BaseVirtualEthernetCard).GetVirtualEthernetCard()
+	card.AddressType = string(types.VirtualEthernetCardMacTypeGenerated)
+
+	return append(devices, device), nil
 }
 
 func addSCSI(devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
