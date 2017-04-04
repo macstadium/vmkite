@@ -15,10 +15,6 @@ curl -X POST "https://api.buildkite.com/v2/organizations/${org_slug}/pipelines/$
 {
   "commit": "HEAD",
   "branch": "master",
-  "message": "Testing vmkite build :rocket: :llama:",
-  "meta_data": {
-    "vmkite-vmdk": "${VMKITE_SOURCE_PATH}",
-    "vmkite-guestid": "${VMKITE_VM_GUEST_TYPE}"
-  }
+  "message": "Testing vmkite build :rocket: :llama:"
 }
 JSON
