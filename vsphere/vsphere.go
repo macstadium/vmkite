@@ -38,7 +38,7 @@ type VirtualMachineCreationParams struct {
 	BuildkiteAgentToken string
 	ClusterPath         string
 	DatastoreName       string
-	MacOsMinorVersion   int
+	GuestID             string
 	MemoryMB            int64
 	Name                string
 	NetworkLabel        string
@@ -135,7 +135,6 @@ func (vs *Session) vmFolder() (*object.Folder, error) {
 }
 
 func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs types.VirtualMachineConfigSpec, err error) {
-
 	devices, err := addEthernet(nil, vs, params.NetworkLabel)
 	if err != nil {
 		return
@@ -167,11 +166,6 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 		&types.OptionValue{Key: "guestinfo.vmkite-vmdk", Value: params.SrcDiskPath},
 	}
 
-	guestType, err := guestTypeForMinorVersion(params.MacOsMinorVersion)
-	if err != nil {
-		return
-	}
-
 	finder, err := vs.getFinder()
 	if err != nil {
 		return
@@ -190,7 +184,7 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 		DeviceChange:        deviceChange,
 		ExtraConfig:         extraConfig,
 		Files:               fileInfo,
-		GuestId:             guestType,
+		GuestId:             params.GuestID,
 		MemoryMB:            params.MemoryMB,
 		Name:                params.Name,
 		NestedHVEnabled:     &t,
@@ -218,16 +212,14 @@ func addEthernet(devices object.VirtualDeviceList, vs *Session, label string) (o
 	if err != nil {
 		return nil, err
 	}
-	eth := &types.VirtualE1000{
-		types.VirtualEthernetCard{
-			VirtualDevice: types.VirtualDevice{
-				Key:     -1,
-				Backing: backing,
-			},
-			AddressType: string(types.VirtualEthernetCardMacTypeGenerated),
-		},
+	device, err := object.EthernetCardTypes().CreateEthernetCard("vmxnet3", backing)
+	if err != nil {
+		return nil, err
 	}
-	return append(devices, eth), nil
+	card := device.(types.BaseVirtualEthernetCard).GetVirtualEthernetCard()
+	card.AddressType = string(types.VirtualEthernetCardMacTypeGenerated)
+
+	return append(devices, device), nil
 }
 
 func addSCSI(devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
@@ -243,21 +235,28 @@ func addDisk(devices object.VirtualDeviceList, vs *Session, params VirtualMachin
 	if err != nil {
 		return nil, err
 	}
+
 	debugf("finder.Datastore(%s)", params.SrcDiskDataStore)
 	diskDatastore, err := finder.Datastore(vs.ctx, params.SrcDiskDataStore)
 	if err != nil {
 		return nil, err
 	}
+
 	controller, err := devices.FindDiskController("scsi")
 	if err != nil {
 		return nil, err
 	}
-	ds := diskDatastore.Reference()
-	path := diskDatastore.Path(params.SrcDiskPath)
-	disk := devices.CreateDisk(controller, ds, path)
+
+	disk := devices.CreateDisk(
+		controller,
+		diskDatastore.Reference(),
+		diskDatastore.Path(params.SrcDiskPath),
+	)
+
 	backing := disk.Backing.(*types.VirtualDiskFlatVer2BackingInfo)
+	backing.ThinProvisioned = types.NewBool(true)
 	backing.DiskMode = string(types.VirtualDiskModeIndependent_nonpersistent)
-	disk = devices.ChildDisk(disk)
+
 	return append(devices, disk), nil
 }
 
@@ -265,20 +264,6 @@ func addUSB(devices object.VirtualDeviceList) (object.VirtualDeviceList, error) 
 	t := true
 	usb := &types.VirtualUSBController{AutoConnectDevices: &t, EhciEnabled: &t}
 	return append(devices, usb), nil
-}
-
-func guestTypeForMinorVersion(minor int) (t string, err error) {
-	switch minor {
-	case 8:
-		t = "darwin12_64Guest"
-	case 9:
-		t = "darwin13_64Guest"
-	case 10, 11:
-		t = "darwin14_64Guest"
-	default:
-		err = fmt.Errorf("unknown VM guest type for macOS 10.%d", minor)
-	}
-	return
 }
 
 func (vs *Session) getFinder() (*find.Finder, error) {

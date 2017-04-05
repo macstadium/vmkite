@@ -2,6 +2,7 @@ package creator
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/macstadium/vmkite/vsphere"
@@ -9,8 +10,7 @@ import (
 
 func CreateVM(vs *vsphere.Session, params vsphere.VirtualMachineCreationParams) (*vsphere.VirtualMachine, error) {
 	if params.Name == "" {
-		ts := time.Now().Format("200612-150405")
-		params.Name = fmt.Sprintf("vmkite-host-macOS_10_%d-%s", params.MacOsMinorVersion, ts)
+		params.Name = createMachineName(params)
 	}
 	vm, err := vs.CreateVM(params)
 	if err != nil {
@@ -20,4 +20,18 @@ func CreateVM(vs *vsphere.Session, params vsphere.VirtualMachineCreationParams) 
 		return nil, err
 	}
 	return vm, nil
+}
+
+func createMachineName(params vsphere.VirtualMachineCreationParams) string {
+	return fmt.Sprintf(
+		"vmkite-%s-%s",
+		normalizeGuestID(params.GuestID),
+		time.Now().Format("200612-150405"),
+	)
+}
+
+func normalizeGuestID(id string) string {
+	id = strings.Replace(id, "_", "-", -1)
+	id = strings.Replace(id, "guest", "", -1)
+	return strings.ToLower(id)
 }

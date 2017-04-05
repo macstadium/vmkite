@@ -53,7 +53,6 @@ func cmdRun(c *kingpin.ParseContext) error {
 		BuildkiteAgentToken: buildkiteAgentToken,
 		ClusterPath:         vmClusterPath,
 		DatastoreName:       vmDS,
-		MacOsMinorVersion:   macOsMinor,
 		MemoryMB:            vmMemoryMB,
 		Name:                "", // automatic
 		NetworkLabel:        vmNetwork,

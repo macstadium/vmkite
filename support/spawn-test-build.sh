@@ -4,13 +4,17 @@ set -e
 set -o pipefail
 set -u
 
-curl https://api.buildkite.com/v2/organizations/macstadium/pipelines/vmkite-test/builds \
-  --silent \
+export org_slug=macstadium
+export pipeline_slug=vmkite-test
+
+curl -X POST "https://api.buildkite.com/v2/organizations/${org_slug}/pipelines/${pipeline_slug}/builds" \
   --show-error \
   --fail \
-  -X POST \
   -H "Authorization: Bearer $VMKITE_BUILDKITE_API_TOKEN" \
-  -F "commit=HEAD" \
-  -F "branch=master" \
-  -F "message=test build" \
-  > /dev/null
+  -d @- << JSON
+{
+  "commit": "HEAD",
+  "branch": "master",
+  "message": "Testing vmkite build :rocket: :llama:"
+}
+JSON

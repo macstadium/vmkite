@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	macOsMinor          = 11
 	vmClusterPath       string
 	vmDS                string
 	vmdkDS              string
@@ -19,6 +18,7 @@ var (
 	vmMemoryMB          int64
 	vmNumCPUs           int32
 	vmNumCoresPerSocket int32
+	vmGuestId           string
 )
 
 func ConfigureCreateVM(app *kingpin.Application) {
@@ -65,6 +65,10 @@ func addCreateVMFlags(cmd *kingpin.CmdClause) {
 	cmd.Flag("vm-num-cores-per-socket", "Number of cores used to distribute virtual CPUs among sockets in this virtual machine").
 		Required().
 		Int32Var(&vmNumCoresPerSocket)
+
+	cmd.Flag("vm-guest-id", "The guestid of the vm").
+		Default("darwin14_64Guest").
+		StringVar(&vmGuestId)
 }
 
 func cmdCreateVM(c *kingpin.ParseContext) error {
@@ -79,7 +83,6 @@ func cmdCreateVM(c *kingpin.ParseContext) error {
 		BuildkiteAgentToken: buildkiteAgentToken,
 		ClusterPath:         vmClusterPath,
 		DatastoreName:       vmDS,
-		MacOsMinorVersion:   macOsMinor,
 		MemoryMB:            vmMemoryMB,
 		Name:                "",
 		NetworkLabel:        vmNetwork,

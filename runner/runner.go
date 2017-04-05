@@ -33,7 +33,7 @@ func Run(vs *vsphere.Session, bk *buildkite.Session, params vsphere.VirtualMachi
 				debugf("ERROR handleJob: %s", err)
 				continue
 			}
-			debugf("created VM '%s' from '%s' for job %s", vmName, j.VMDK, j.ID)
+			debugf("created VM '%s' from '%s' for job %s", vmName, j.Metadata.VMDK, j.ID)
 			st.jobVMs[j.ID] = vmName
 		}
 		time.Sleep(2 * time.Second)
@@ -52,14 +52,17 @@ func RunOnce(vs *vsphere.Session, bk *buildkite.Session, params vsphere.VirtualM
 		if err != nil {
 			return err
 		}
-		debugf("created VM '%s' from '%s' for job %s", vmName, j.VMDK, j.ID)
+		debugf("created VM '%s' from '%s' for job %s", vmName, j.Metadata.VMDK, j.ID)
 	}
 	return nil
 }
 
 func handleJob(job buildkite.VmkiteJob, vs *vsphere.Session, params vsphere.VirtualMachineCreationParams) (string, error) {
-	debugf("job %s => %s", job.ID, job.VMDK)
-	params.SrcDiskPath = job.VMDK
+	debugf("job %s => %s %s", job.ID, job.Metadata.VMDK, job.Metadata.GuestID)
+	params.SrcDiskPath = job.Metadata.VMDK
+	params.GuestID = job.Metadata.GuestID
+
+	debugf("vm params %#v", params)
 	vm, err := creator.CreateVM(vs, params)
 	if err != nil {
 		return "", err
