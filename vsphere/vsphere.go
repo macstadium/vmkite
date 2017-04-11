@@ -37,6 +37,7 @@ type Session struct {
 type VirtualMachineCreationParams struct {
 	BuildkiteAgentToken string
 	ClusterPath         string
+	VirtualMachinePath  string
 	DatastoreName       string
 	GuestID             string
 	MemoryMB            int64
@@ -107,7 +108,7 @@ func (vs *Session) CreateVM(params VirtualMachineCreationParams) (*VirtualMachin
 	if err != nil {
 		return nil, err
 	}
-	debugf("CreateVM %s on %s", params.Name, resourcePool)
+	debugf("folder.CreateVM %s on %s", params.Name, resourcePool)
 	task, err := folder.CreateVM(vs.ctx, configSpec, resourcePool, nil)
 	if err != nil {
 		return nil, err

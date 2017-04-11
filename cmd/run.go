@@ -44,14 +44,16 @@ func cmdRun(c *kingpin.ParseContext) error {
 	if err != nil {
 		return err
 	}
-	bk := &buildkite.Session{
-		ApiToken: buildkiteApiToken,
-		Org:      buildkiteOrg,
+
+	bk, err := buildkite.NewSession(buildkiteOrg, buildkiteApiToken)
+	if err != nil {
+		return err
 	}
 
 	params := vsphere.VirtualMachineCreationParams{
 		BuildkiteAgentToken: buildkiteAgentToken,
 		ClusterPath:         vmClusterPath,
+		VirtualMachinePath:  vmPath,
 		DatastoreName:       vmDS,
 		MemoryMB:            vmMemoryMB,
 		Name:                "", // automatic

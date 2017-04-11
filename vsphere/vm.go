@@ -23,7 +23,7 @@ func (vm *VirtualMachine) Destroy(powerOff bool) error {
 		}
 	}
 
-	debugf("Destroy %s", vm.Name)
+	debugf("vm.Destroy(%s)", vm.Name)
 	task, err := vm.mo.Destroy(vs.ctx)
 	if err != nil {
 		return err
@@ -46,7 +46,7 @@ func (vm *VirtualMachine) IsPoweredOn() (bool, error) {
 
 func (vm *VirtualMachine) PowerOff() error {
 	vs := vm.vs
-	debugf("PowerOff %s", vm.Name)
+	debugf("wm.PowerOff(%s)", vm.Name)
 	task, err := vm.mo.PowerOff(vs.ctx)
 	if err != nil {
 		return err
@@ -60,7 +60,7 @@ func (vm *VirtualMachine) PowerOff() error {
 
 func (vm *VirtualMachine) PowerOn() error {
 	vs := vm.vs
-	debugf("PowerOn %s", vm.Name)
+	debugf("vm.PowerOn(%s)", vm.Name)
 	task, err := vm.mo.PowerOn(vs.ctx)
 	if err != nil {
 		return err

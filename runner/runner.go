@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -9,13 +10,9 @@ import (
 	"github.com/macstadium/vmkite/vsphere"
 )
 
-type state struct {
-	jobVMs map[string]string
-}
-
 func Run(vs *vsphere.Session, bk *buildkite.Session, params vsphere.VirtualMachineCreationParams) error {
-	st := state{
-		jobVMs: make(map[string]string),
+	st := &state{
+		jobVMs: make(map[string]jobState),
 	}
 	for {
 		jobs, err := bk.VmkiteJobs()
@@ -24,8 +21,8 @@ func Run(vs *vsphere.Session, bk *buildkite.Session, params vsphere.VirtualMachi
 			continue
 		}
 		for _, j := range jobs {
-			if existingVmName, ok := st.jobVMs[j.ID]; ok {
-				debugf("already created %s for job %s", existingVmName, j.ID)
+			if existing, ok := st.Get(j); ok {
+				debugf("already created %s for job %s", existing.VmName, j.ID)
 				continue
 			}
 			vmName, err := handleJob(j, vs, params)
@@ -34,7 +31,10 @@ func Run(vs *vsphere.Session, bk *buildkite.Session, params vsphere.VirtualMachi
 				continue
 			}
 			debugf("created VM '%s' from '%s' for job %s", vmName, j.Metadata.VMDK, j.ID)
-			st.jobVMs[j.ID] = vmName
+			st.Track(j, vmName, params.VirtualMachinePath)
+		}
+		if err = destroyFinished(st, vs, bk); err != nil {
+			debugf("ERROR destroyFinished: %s", err)
 		}
 		time.Sleep(2 * time.Second)
 	}
@@ -62,12 +62,33 @@ func handleJob(job buildkite.VmkiteJob, vs *vsphere.Session, params vsphere.Virt
 	params.SrcDiskPath = job.Metadata.VMDK
 	params.GuestID = job.Metadata.GuestID
 
-	debugf("vm params %#v", params)
+	// debugf("vm params %#v", params)
 	vm, err := creator.CreateVM(vs, params)
 	if err != nil {
 		return "", err
 	}
 	return vm.Name, nil
+}
+
+func destroyFinished(s *state, vs *vsphere.Session, bk *buildkite.Session) error {
+	for _, js := range s.List() {
+		vm, err := vs.VirtualMachine(js.FullPath())
+		if err != nil {
+			return fmt.Errorf("Finding vm failed: %v", err)
+		}
+		poweredOn, err := vm.IsPoweredOn()
+		if err != nil {
+			return fmt.Errorf("vm.IsPoweredOn failed: %v", err)
+		}
+		if !poweredOn {
+			debugf("destroying finished vm %s", js.VmName)
+			if err = vm.Destroy(true); err != nil {
+				return err
+			}
+			s.Untrack(js.VmkiteJob)
+		}
+	}
+	return nil
 }
 
 func debugf(format string, data ...interface{}) {

@@ -2,32 +2,40 @@ package buildkite
 
 import (
 	"log"
+	"strconv"
 	"strings"
 
 	"gopkg.in/buildkite/go-buildkite.v2/buildkite"
 )
 
 type Session struct {
-	ApiToken string
-	Org      string
+	Org    string
+	client *buildkite.Client
 }
 
-type VmkiteJob struct {
-	ID       string
-	Metadata VmkiteMetadata
-}
-
-func (bk *Session) VmkiteJobs() ([]VmkiteJob, error) {
-	config, err := buildkite.NewTokenConfig(bk.ApiToken, false)
+func NewSession(org string, apiToken string) (*Session, error) {
+	config, err := buildkite.NewTokenConfig(apiToken, false)
 	if err != nil {
 		return nil, err
 	}
-	client := buildkite.NewClient(config.Client())
-	buildListOptions := buildkite.BuildsListOptions{
-		State: []string{"scheduled", "running"},
-	}
+	return &Session{
+		Org:    org,
+		client: buildkite.NewClient(config.Client()),
+	}, nil
+}
+
+type VmkiteJob struct {
+	ID          string
+	BuildNumber string
+	Pipeline    string
+	Metadata    VmkiteMetadata
+}
+
+func (bk *Session) VmkiteJobs() ([]VmkiteJob, error) {
 	debugf("Builds.ListByOrg(%s, ...)", bk.Org)
-	builds, _, err := client.Builds.ListByOrg(bk.Org, &buildListOptions)
+	builds, _, err := bk.client.Builds.ListByOrg(bk.Org, &buildkite.BuildsListOptions{
+		State: []string{"scheduled", "running"},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -37,13 +45,33 @@ func (bk *Session) VmkiteJobs() ([]VmkiteJob, error) {
 			metadata := parseAgentQueryRules(job.AgentQueryRules)
 			if metadata.GuestID != "" && metadata.VMDK != "" {
 				jobs = append(jobs, VmkiteJob{
-					ID:       *job.ID,
-					Metadata: metadata,
+					ID:          *job.ID,
+					BuildNumber: strconv.Itoa(*build.Number),
+					Pipeline:    *build.Pipeline.Slug,
+					Metadata:    metadata,
 				})
 			}
 		}
 	}
 	return jobs, nil
+}
+
+func (bk *Session) IsFinished(job VmkiteJob) (bool, error) {
+	debugf("Builds.Get(%s, %s, %s)", bk.Org, job.Pipeline, job.BuildNumber)
+	build, _, err := bk.client.Builds.Get(bk.Org, job.Pipeline, job.BuildNumber)
+	if err != nil {
+		return false, err
+	}
+	for _, buildJob := range build.Jobs {
+		if *buildJob.ID == job.ID {
+			switch *buildJob.State {
+			case "scheduled", "running":
+				return false, nil
+			}
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 type VmkiteMetadata struct {
@@ -52,8 +80,6 @@ type VmkiteMetadata struct {
 }
 
 func parseAgentQueryRules(rules []string) VmkiteMetadata {
-	debugf("parsing agent query rules: %#v", rules)
-
 	metadata := VmkiteMetadata{}
 	for _, r := range rules {
 		parts := strings.SplitN(r, "=", 2)
