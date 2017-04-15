@@ -23,7 +23,11 @@ vmkite run \
   --vm-network-label=VM-NETWORK-LABEL \
   --vm-memory-mb=VM-MEMORY-MB \
   --vm-num-cpus=VM-NUM-CPUS \
-  --vm-num-cores-per-socket=VM-NUM-CORES-PER-SOCKET
+  --vm-num-cores-per-socket=VM-NUM-CORES-PER-SOCKET \
+  --vsphere-host=VSPHERE_HOST \
+  --vsphere-user=VSPHERE_USER \
+  --vsphere-pass=VSPHERE_PASS \
+  --vsphere-insecure=false
 ```
 
 Strategy
