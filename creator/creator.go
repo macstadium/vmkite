@@ -31,7 +31,8 @@ func createMachineName(params vsphere.VirtualMachineCreationParams) string {
 }
 
 func normalizeGuestID(id string) string {
+	id = strings.ToLower(id)
 	id = strings.Replace(id, "_", "-", -1)
 	id = strings.Replace(id, "guest", "", -1)
-	return strings.ToLower(id)
+	return id
 }
