@@ -167,6 +167,11 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 		&types.OptionValue{Key: "guestinfo.vmkite-vmdk", Value: params.SrcDiskPath},
 	}
 
+	// ensure a consistent pci slot for the ethernet card, helps systemd
+	extraConfig = append(extraConfig,
+		&types.OptionValue{Key: "ethernet0.pciSlotNumber", Value: "32"},
+	)
+
 	finder, err := vs.getFinder()
 	if err != nil {
 		return
