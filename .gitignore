@@ -1,3 +1,4 @@
 /vmkite
 /.env
 bin/
+*.env

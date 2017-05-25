@@ -21,6 +21,10 @@ var (
 	vmGuestId           string
 )
 
+var (
+	vmGuestInfo = map[string]string{}
+)
+
 func ConfigureCreateVM(app *kingpin.Application) {
 	cmd := app.Command("create-vm", "create a virtual machine")
 
@@ -69,6 +73,9 @@ func addCreateVMFlags(cmd *kingpin.CmdClause) {
 	cmd.Flag("vm-guest-id", "The guestid of the vm").
 		Default("darwin14_64Guest").
 		StringVar(&vmGuestId)
+
+	cmd.Flag("vm-guest-info", "A set of key=value params to pass to the vm").
+		StringMapVar(&vmGuestInfo)
 }
 
 func cmdCreateVM(c *kingpin.ParseContext) error {
@@ -90,6 +97,7 @@ func cmdCreateVM(c *kingpin.ParseContext) error {
 		NumCoresPerSocket:   vmNumCoresPerSocket,
 		SrcDiskDataStore:    vmdkDS,
 		SrcDiskPath:         vmdkPath,
+		GuestInfo:           vmGuestInfo,
 	}
 
 	_, err = creator.CreateVM(vs, params)
