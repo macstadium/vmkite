@@ -47,6 +47,7 @@ type VirtualMachineCreationParams struct {
 	NumCoresPerSocket   int32
 	SrcDiskDataStore    string
 	SrcDiskPath         string
+	GuestInfo           map[string]string
 }
 
 // NewSession logs in to a new Session based on ConnectionParams
@@ -165,6 +166,15 @@ func (vs *Session) createConfigSpec(params VirtualMachineCreationParams) (cs typ
 		&types.OptionValue{Key: "guestinfo.vmkite-buildkite-agent-token", Value: params.BuildkiteAgentToken},
 		&types.OptionValue{Key: "guestinfo.vmkite-name", Value: params.Name},
 		&types.OptionValue{Key: "guestinfo.vmkite-vmdk", Value: params.SrcDiskPath},
+	}
+
+	if params.GuestInfo != nil {
+		for key, val := range params.GuestInfo {
+			debugf("setting guestinfo.%s=%q", key, val)
+			extraConfig = append(extraConfig,
+				&types.OptionValue{Key: "guestinfo." + key, Value: val},
+			)
+		}
 	}
 
 	// ensure a consistent pci slot for the ethernet card, helps systemd
