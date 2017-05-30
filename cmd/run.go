@@ -62,6 +62,7 @@ func cmdRun(c *kingpin.ParseContext) error {
 		NumCoresPerSocket:   vmNumCoresPerSocket,
 		SrcDiskDataStore:    vmdkDS,
 		SrcDiskPath:         "", // per-job
+		GuestInfo:           vmGuestInfo,
 	}
 
 	if runOnce {
