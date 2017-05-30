@@ -5,8 +5,6 @@ Provides a daemon that listens for builds on [Buildkite][bk] and spawns ephemera
 
 Requires a vSphere Datastore with the base virtual machine image in a `.vmx` format. Currently MacStadium provides these for you as part of your private cluster, contact us for the location to use. 
 
-**Note: currently only supports macOS virtual machines**
-
 Running
 -------
 
