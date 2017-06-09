@@ -9,12 +9,16 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"time"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
+	"github.com/vmware/govmomi/session"
 	"github.com/vmware/govmomi/vim25/types"
 )
+
+const keepAliveDuration = time.Second * 30
 
 // ConnectionParams is passed by calling code to NewSession()
 type ConnectionParams struct {
@@ -62,6 +66,11 @@ func NewSession(ctx context.Context, cp ConnectionParams) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	// prevent vsphere session from dropping
+	c.Client.RoundTripper = session.KeepAlive(
+		c.Client.RoundTripper,
+		keepAliveDuration,
+	)
 	return &Session{
 		ctx:    ctx,
 		client: c,
