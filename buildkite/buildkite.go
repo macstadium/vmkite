@@ -31,7 +31,26 @@ type VmkiteJob struct {
 	Metadata    VmkiteMetadata
 }
 
-func (bk *Session) VmkiteJobs() ([]VmkiteJob, error) {
+type VmkiteJobQueryParams struct {
+	Pipelines []string
+}
+
+func (bk *Session) VmkiteJobs(query VmkiteJobQueryParams) ([]VmkiteJob, error) {
+	if len(query.Pipelines) > 0 {
+		jobs := make([]VmkiteJob, 0)
+		for _, pipeline := range query.Pipelines {
+			debugf("Builds.ListByPipeline(%s, %s, ...)", bk.Org, pipeline)
+			builds, _, err := bk.client.Builds.ListByPipeline(bk.Org, pipeline, &buildkite.BuildsListOptions{
+				State: []string{"scheduled", "running"},
+			})
+			if err != nil {
+				return nil, err
+			}
+			jobs = append(jobs, readJobsFromBuilds(builds)...)
+		}
+		return jobs, nil
+	}
+
 	debugf("Builds.ListByOrg(%s, ...)", bk.Org)
 	builds, _, err := bk.client.Builds.ListByOrg(bk.Org, &buildkite.BuildsListOptions{
 		State: []string{"scheduled", "running"},
@@ -39,6 +58,11 @@ func (bk *Session) VmkiteJobs() ([]VmkiteJob, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return readJobsFromBuilds(builds), nil
+}
+
+func readJobsFromBuilds(builds []buildkite.Build) []VmkiteJob {
 	jobs := make([]VmkiteJob, 0)
 	for _, build := range builds {
 		for _, job := range build.Jobs {
@@ -53,7 +77,7 @@ func (bk *Session) VmkiteJobs() ([]VmkiteJob, error) {
 			}
 		}
 	}
-	return jobs, nil
+	return jobs
 }
 
 func (bk *Session) IsFinished(job VmkiteJob) (bool, error) {

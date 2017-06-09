@@ -13,6 +13,7 @@ var (
 	buildkiteApiToken   string
 	buildkiteAgentToken string
 	buildkiteOrg        string
+	buildkitePipelines  []string
 	runOnce             bool
 )
 
@@ -30,6 +31,9 @@ func ConfigureRun(app *kingpin.Application) {
 	cmd.Flag("buildkite-org", "Buildkite organization slug").
 		Required().
 		StringVar(&buildkiteOrg)
+
+	cmd.Flag("buildkite-pipeline", "Limit to a specific buildkite pipelines").
+		StringsVar(&buildkitePipelines)
 
 	cmd.Flag("once", "Run once, launch for waiting jobs, exit").
 		BoolVar(&runOnce)
@@ -50,19 +54,22 @@ func cmdRun(c *kingpin.ParseContext) error {
 		return err
 	}
 
-	params := vsphere.VirtualMachineCreationParams{
-		BuildkiteAgentToken: buildkiteAgentToken,
-		ClusterPath:         vmClusterPath,
-		VirtualMachinePath:  vmPath,
-		DatastoreName:       vmDS,
-		MemoryMB:            vmMemoryMB,
-		Name:                "", // automatic
-		NetworkLabel:        vmNetwork,
-		NumCPUs:             vmNumCPUs,
-		NumCoresPerSocket:   vmNumCoresPerSocket,
-		SrcDiskDataStore:    vmdkDS,
-		SrcDiskPath:         "", // per-job
-		GuestInfo:           vmGuestInfo,
+	params := runner.Params{
+		Pipelines: buildkitePipelines,
+		CreationParams: vsphere.VirtualMachineCreationParams{
+			BuildkiteAgentToken: buildkiteAgentToken,
+			ClusterPath:         vmClusterPath,
+			VirtualMachinePath:  vmPath,
+			DatastoreName:       vmDS,
+			MemoryMB:            vmMemoryMB,
+			Name:                "", // automatic
+			NetworkLabel:        vmNetwork,
+			NumCPUs:             vmNumCPUs,
+			NumCoresPerSocket:   vmNumCoresPerSocket,
+			SrcDiskDataStore:    vmdkDS,
+			SrcDiskPath:         "", // per-job
+			GuestInfo:           vmGuestInfo,
+		},
 	}
 
 	if runOnce {

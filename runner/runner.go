@@ -10,12 +10,19 @@ import (
 	"github.com/macstadium/vmkite/vsphere"
 )
 
-func Run(vs *vsphere.Session, bk *buildkite.Session, params vsphere.VirtualMachineCreationParams) error {
+type Params struct {
+	CreationParams vsphere.VirtualMachineCreationParams
+	Pipelines      []string
+}
+
+func Run(vs *vsphere.Session, bk *buildkite.Session, params Params) error {
 	st := &state{
 		jobVMs: make(map[string]jobState),
 	}
 	for {
-		jobs, err := bk.VmkiteJobs()
+		jobs, err := bk.VmkiteJobs(buildkite.VmkiteJobQueryParams{
+			Pipelines: params.Pipelines,
+		})
 		if err != nil {
 			debugf("ERROR VmkiteJobs: %s", err)
 			continue
@@ -25,13 +32,13 @@ func Run(vs *vsphere.Session, bk *buildkite.Session, params vsphere.VirtualMachi
 				debugf("already created %s for job %s", existing.VmName, j.ID)
 				continue
 			}
-			vmName, err := handleJob(j, vs, params)
+			vmName, err := handleJob(j, vs, params.CreationParams)
 			if err != nil {
 				debugf("ERROR handleJob: %s", err)
 				continue
 			}
 			debugf("created VM '%s' from '%s' for job %s", vmName, j.Metadata.VMDK, j.ID)
-			st.Track(j, vmName, params.VirtualMachinePath)
+			st.Track(j, vmName, params.CreationParams.VirtualMachinePath)
 		}
 		if err = destroyFinished(st, vs, bk); err != nil {
 			debugf("ERROR destroyFinished: %s", err)
@@ -42,13 +49,15 @@ func Run(vs *vsphere.Session, bk *buildkite.Session, params vsphere.VirtualMachi
 	return nil
 }
 
-func RunOnce(vs *vsphere.Session, bk *buildkite.Session, params vsphere.VirtualMachineCreationParams) error {
-	jobs, err := bk.VmkiteJobs()
+func RunOnce(vs *vsphere.Session, bk *buildkite.Session, params Params) error {
+	jobs, err := bk.VmkiteJobs(buildkite.VmkiteJobQueryParams{
+		Pipelines: params.Pipelines,
+	})
 	if err != nil {
 		return err
 	}
 	for _, j := range jobs {
-		vmName, err := handleJob(j, vs, params)
+		vmName, err := handleJob(j, vs, params.CreationParams)
 		if err != nil {
 			return err
 		}
