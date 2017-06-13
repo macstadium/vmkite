@@ -23,8 +23,8 @@ func run(args []string, exit func(code int)) {
 	app.Terminate(exit)
 
 	cmd.ConfigureGlobal(app)
-
 	cmd.ConfigureCreateVM(app)
+	cmd.ConfigureCloneVM(app)
 	cmd.ConfigureDestroyVM(app)
 	cmd.ConfigureRun(app)
 

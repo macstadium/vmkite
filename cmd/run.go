@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"log"
 
 	"github.com/macstadium/vmkite/buildkite"
 	"github.com/macstadium/vmkite/runner"
@@ -9,72 +10,70 @@ import (
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
-var (
+var runParams = struct {
 	buildkiteApiToken   string
 	buildkiteAgentToken string
 	buildkiteOrg        string
 	buildkitePipelines  []string
-	runOnce             bool
-)
+	apiListenOn         string
+	vmGuestInfo         map[string]string
+}{
+	vmGuestInfo: map[string]string{},
+}
 
 func ConfigureRun(app *kingpin.Application) {
 	cmd := app.Command("run", "wait for Buildkite jobs, launch VMs")
 
 	cmd.Flag("buildkite-agent-token", "Buildkite Agent Token").
 		Required().
-		StringVar(&buildkiteAgentToken)
+		StringVar(&runParams.buildkiteAgentToken)
 
 	cmd.Flag("buildkite-api-token", "Buildkite API Token").
 		Required().
-		StringVar(&buildkiteApiToken)
+		StringVar(&runParams.buildkiteApiToken)
 
 	cmd.Flag("buildkite-org", "Buildkite organization slug").
 		Required().
-		StringVar(&buildkiteOrg)
+		StringVar(&runParams.buildkiteOrg)
 
 	cmd.Flag("buildkite-pipeline", "Limit to a specific buildkite pipelines").
-		StringsVar(&buildkitePipelines)
+		StringsVar(&runParams.buildkitePipelines)
 
-	cmd.Flag("once", "Run once, launch for waiting jobs, exit").
-		BoolVar(&runOnce)
+	cmd.Flag("api-listen", "The address and port for the api server to listen on").
+		StringVar(&runParams.apiListenOn)
 
-	addCreateVMFlags(cmd)
+	cmd.Flag("vm-guest-info", "A set of key=value params to pass to the vm").
+		StringMapVar(&cloneParams.vmGuestInfo)
 
 	cmd.Action(cmdRun)
 }
 
 func cmdRun(c *kingpin.ParseContext) error {
-	vs, err := vsphere.NewSession(context.Background(), connectionParams)
+	vs, err := vsphere.NewSession(context.Background(), globalParams.connectionParams)
 	if err != nil {
 		return err
 	}
 
-	bk, err := buildkite.NewSession(buildkiteOrg, buildkiteApiToken)
+	bk, err := buildkite.NewSession(runParams.buildkiteOrg, runParams.buildkiteApiToken)
 	if err != nil {
 		return err
 	}
 
-	params := runner.Params{
-		Pipelines: buildkitePipelines,
-		CreationParams: vsphere.VirtualMachineCreationParams{
-			BuildkiteAgentToken: buildkiteAgentToken,
-			ClusterPath:         vmClusterPath,
-			VirtualMachinePath:  vmPath,
-			DatastoreName:       vmDS,
-			MemoryMB:            vmMemoryMB,
-			Name:                "", // automatic
-			NetworkLabel:        vmNetwork,
-			NumCPUs:             vmNumCPUs,
-			NumCoresPerSocket:   vmNumCoresPerSocket,
-			SrcDiskDataStore:    vmdkDS,
-			SrcDiskPath:         "", // per-job
-			GuestInfo:           vmGuestInfo,
-		},
+	guestInfo := map[string]string{
+		"vmkite-buildkite-agent-token": runParams.buildkiteAgentToken,
 	}
 
-	if runOnce {
-		return runner.RunOnce(vs, bk, params)
-	} else {
-		return runner.Run(vs, bk, params)
+	for k, v := range runParams.vmGuestInfo {
+		guestInfo[k] = v
 	}
+
+	return runner.Run(vs, bk, runner.Params{
+		Pipelines:   runParams.buildkitePipelines,
+		ApiListenOn: runParams.apiListenOn,
+		GuestInfo:   guestInfo,
+	})
+}
+
+func debugf(format string, data ...interface{}) {
+	log.Printf("[cmd] "+format, data...)
 }

@@ -8,16 +8,16 @@ import (
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
-var (
+var destroyParams struct {
 	vmNames []string
-)
+}
 
 func ConfigureDestroyVM(app *kingpin.Application) {
 	cmd := app.Command("destroy-vm", "destroy a virtual machine")
 
 	cmd.Arg("name", "name of virtual machine to destroy").
 		Required().
-		StringsVar(&vmNames)
+		StringsVar(&destroyParams.vmNames)
 
 	cmd.Action(cmdDestroyVM)
 }
@@ -25,13 +25,13 @@ func ConfigureDestroyVM(app *kingpin.Application) {
 func cmdDestroyVM(c *kingpin.ParseContext) error {
 	ctx := context.Background()
 
-	vs, err := vsphere.NewSession(ctx, connectionParams)
+	vs, err := vsphere.NewSession(ctx, globalParams.connectionParams)
 	if err != nil {
 		return err
 	}
 
-	for _, vmName := range vmNames {
-		vm, err := vs.VirtualMachine(vmPath + "/" + vmName)
+	for _, vmName := range destroyParams.vmNames {
+		vm, err := vs.VirtualMachine(vmName)
 		if err != nil {
 			return err
 		}

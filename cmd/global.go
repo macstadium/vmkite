@@ -5,30 +5,24 @@ import (
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
-var (
-	clusterPath      string
-	vmPath           string
+var globalParams struct {
 	connectionParams vsphere.ConnectionParams
-)
+}
 
 func ConfigureGlobal(app *kingpin.Application) {
 	app.Flag("vsphere-host", "vSphere hostname or IP address").
 		Required().
-		StringVar(&connectionParams.Host)
+		StringVar(&globalParams.connectionParams.Host)
 
 	app.Flag("vsphere-user", "vSphere username").
 		Required().
-		StringVar(&connectionParams.User)
+		StringVar(&globalParams.connectionParams.User)
 
 	app.Flag("vsphere-pass", "vSphere password").
 		Required().
-		StringVar(&connectionParams.Pass)
+		StringVar(&globalParams.connectionParams.Pass)
 
 	app.Flag("vsphere-insecure", "vSphere certificate verification").
 		Default("false").
-		BoolVar(&connectionParams.Insecure)
-
-	app.Flag("vm-path", "path to folder containing virtual machines").
-		Required().
-		StringVar(&vmPath)
+		BoolVar(&globalParams.connectionParams.Insecure)
 }

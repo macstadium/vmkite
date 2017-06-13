@@ -1,17 +1,12 @@
 package creator
 
 import (
-	"fmt"
-	"strings"
-	"time"
+	"log"
 
 	"github.com/macstadium/vmkite/vsphere"
 )
 
 func CreateVM(vs *vsphere.Session, params vsphere.VirtualMachineCreationParams) (*vsphere.VirtualMachine, error) {
-	if params.Name == "" {
-		params.Name = createMachineName(params)
-	}
 	vm, err := vs.CreateVM(params)
 	if err != nil {
 		return nil, err
@@ -22,17 +17,18 @@ func CreateVM(vs *vsphere.Session, params vsphere.VirtualMachineCreationParams) 
 	return vm, nil
 }
 
-func createMachineName(params vsphere.VirtualMachineCreationParams) string {
-	return fmt.Sprintf(
-		"vmkite-%s-%s",
-		normalizeGuestID(params.GuestID),
-		time.Now().Format("200612-150405"),
-	)
-}
-
-func normalizeGuestID(id string) string {
-	id = strings.ToLower(id)
-	id = strings.Replace(id, "_", "-", -1)
-	id = strings.Replace(id, "guest", "", -1)
-	return id
+func CloneVM(vs *vsphere.Session, params vsphere.VirtualMachineCloneParams) (*vsphere.VirtualMachine, error) {
+	log.Printf("%#v", params)
+	vm, err := vs.VirtualMachine(params.SrcName)
+	if err != nil {
+		return nil, err
+	}
+	clonedVm, err := vm.Clone(params)
+	if err != nil {
+		return nil, err
+	}
+	if err := clonedVm.PowerOn(); err != nil {
+		return nil, err
+	}
+	return clonedVm, nil
 }

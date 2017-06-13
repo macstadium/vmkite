@@ -1,9 +1,11 @@
 package buildkite
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/buildkite/go-buildkite.v2/buildkite"
 )
@@ -28,7 +30,17 @@ type VmkiteJob struct {
 	ID          string
 	BuildNumber string
 	Pipeline    string
+	CreatedAt   time.Time
 	Metadata    VmkiteMetadata
+}
+
+func (v *VmkiteJob) String() string {
+	return fmt.Sprintf("%s/%s/%s", v.Pipeline, v.BuildNumber, v.ID)
+}
+
+func (v VmkiteJob) VMName() string {
+	return fmt.Sprintf("%s-%s-%s-%s",
+		v.Metadata.Template, v.Pipeline, v.BuildNumber, time.Now().Format("200612-150405"))
 }
 
 type VmkiteJobQueryParams struct {
@@ -67,12 +79,13 @@ func readJobsFromBuilds(builds []buildkite.Build) []VmkiteJob {
 	for _, build := range builds {
 		for _, job := range build.Jobs {
 			metadata := parseAgentQueryRules(job.AgentQueryRules)
-			if metadata.GuestID != "" && metadata.VMDK != "" {
+			if metadata.Template != "" {
 				jobs = append(jobs, VmkiteJob{
 					ID:          *job.ID,
 					BuildNumber: strconv.Itoa(*build.Number),
 					Pipeline:    *build.Pipeline.Slug,
 					Metadata:    metadata,
+					CreatedAt:   job.CreatedAt.Time,
 				})
 			}
 		}
@@ -99,8 +112,8 @@ func (bk *Session) IsFinished(job VmkiteJob) (bool, error) {
 }
 
 type VmkiteMetadata struct {
-	VMDK    string
-	GuestID string
+	Template string
+	Queue    string
 }
 
 func parseAgentQueryRules(rules []string) VmkiteMetadata {
@@ -109,10 +122,10 @@ func parseAgentQueryRules(rules []string) VmkiteMetadata {
 		parts := strings.SplitN(r, "=", 2)
 		if len(parts) == 2 {
 			switch parts[0] {
-			case "vmkite-vmdk":
-				metadata.VMDK = parts[1]
-			case "vmkite-guestid":
-				metadata.GuestID = parts[1]
+			case "vmkite-template":
+				metadata.Template = parts[1]
+			case "queue":
+				metadata.Queue = parts[1]
 			}
 		}
 	}
