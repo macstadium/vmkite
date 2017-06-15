@@ -1,6 +1,9 @@
+VERSION=$(shell git describe --tags --candidates=1 --dirty 2>/dev/null || echo "dev")
+FLAGS=-X main.Version=$(VERSION)
+
 vmkite: *.go buildkite/*.go cmd/*.go creator/*.go runner/*.go vsphere/*.go
-	go install -a
-	go build -v
+	go install -a -ldflags="$(FLAGS)"
+	go build -v -ldflags="$(FLAGS)"
 
 .PHONY: clean
 clean:
