@@ -34,8 +34,10 @@ type ConnectionParams struct {
 // Session holds state for a vSphere session;
 // client connection, context, session-cached values
 type Session struct {
-	client *govmomi.Client
-	ctx    context.Context
+	client     *govmomi.Client
+	ctx        context.Context
+	datacenter *object.Datacenter
+	finder     *find.Finder
 }
 
 // VirtualMachineCreationParams is passed by calling code to Session.CreateVM()
