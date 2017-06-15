@@ -15,6 +15,9 @@ import (
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/session"
+	"github.com/vmware/govmomi/vim25"
+	"github.com/vmware/govmomi/vim25/methods"
+	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
 )
 
@@ -29,12 +32,10 @@ type ConnectionParams struct {
 }
 
 // Session holds state for a vSphere session;
-// client connection, context, session-cached values like finder etc.
+// client connection, context, session-cached values
 type Session struct {
-	client     *govmomi.Client
-	ctx        context.Context
-	datacenter *object.Datacenter
-	finder     *find.Finder
+	client *govmomi.Client
+	ctx    context.Context
 }
 
 // VirtualMachineCreationParams is passed by calling code to Session.CreateVM()
@@ -56,25 +57,58 @@ type VirtualMachineCreationParams struct {
 
 // NewSession logs in to a new Session based on ConnectionParams
 func NewSession(ctx context.Context, cp ConnectionParams) (*Session, error) {
+	sess := &Session{
+		ctx: ctx,
+	}
+	return sess, sess.connect(ctx, cp)
+}
+
+// Connect to vSphere API, with keep-alive
+// See https://github.com/vmware/vic/blob/master/pkg/vsphere/session/session.go#L191
+func (s *Session) connect(ctx context.Context, cp ConnectionParams) error {
 	u, err := url.Parse(fmt.Sprintf("https://%s/sdk", cp.Host))
 	if err != nil {
-		return nil, err
+		return err
 	}
-	debugf("govmomi.NewClient(%s) user:%s", u.String(), cp.User)
+
 	u.User = url.UserPassword(cp.User, cp.Pass)
-	c, err := govmomi.NewClient(ctx, u, cp.Insecure)
-	if err != nil {
-		return nil, err
+	soapClient := soap.NewClient(u, cp.Insecure)
+	soapClient.Version = "6.0" // Pin to 6.0 until we need 6.5+ specific API
+
+	var login = func(ctx context.Context) error {
+		return s.client.Login(ctx, u.User)
 	}
-	// prevent vsphere session from dropping
-	c.Client.RoundTripper = session.KeepAlive(
-		c.Client.RoundTripper,
-		keepAliveDuration,
-	)
-	return &Session{
-		ctx:    ctx,
-		client: c,
-	}, nil
+
+	vimClient, err := vim25.NewClient(ctx, soapClient)
+	if err != nil {
+		return err
+	}
+
+	vimClient.RoundTripper = session.KeepAliveHandler(soapClient, keepAliveDuration,
+		func(roundTripper soap.RoundTripper) error {
+			_, err := methods.GetCurrentTime(context.Background(), roundTripper)
+			if err == nil {
+				return nil
+			}
+
+			debugf("session keepalive error: %s", err)
+			if isNotAuthenticated(err) {
+				if err = login(ctx); err != nil {
+					debugf("session keepalive failed to re-authenticate: %s", err)
+				} else {
+					debugf("session keepalive re-authenticated")
+				}
+			}
+
+			return nil
+		})
+
+	s.client = &govmomi.Client{
+		Client:         vimClient,
+		SessionManager: session.NewManager(vimClient),
+	}
+
+	return login(ctx)
 }
 
 func (vs *Session) VirtualMachine(path string) (*VirtualMachine, error) {
@@ -310,4 +344,14 @@ func (vs *Session) getFinder() (*find.Finder, error) {
 
 func debugf(format string, data ...interface{}) {
 	log.Printf("[vsphere] "+format, data...)
+}
+
+func isNotAuthenticated(err error) bool {
+	if soap.IsSoapFault(err) {
+		switch soap.ToSoapFault(err).VimFault().(type) {
+		case types.NotAuthenticated:
+			return true
+		}
+	}
+	return false
 }
