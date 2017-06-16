@@ -12,4 +12,4 @@ clean:
 .PHONY: release
 release:
 	go get github.com/mitchellh/gox
-	gox -output="bin/{{.Dir}}_{{.OS}}_{{.Arch}}" -osarch="linux/amd64 darwin/amd64 windows/amd64"
+	gox -ldflags="$(FLAGS)" -output="bin/{{.Dir}}_{{.OS}}_{{.Arch}}" -osarch="linux/amd64 darwin/amd64 windows/amd64"
