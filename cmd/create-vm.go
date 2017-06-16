@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/macstadium/vmkite/creator"
 	"github.com/macstadium/vmkite/vsphere"
@@ -91,7 +93,7 @@ func cmdCreateVM(c *kingpin.ParseContext) error {
 		ClusterPath:         vmClusterPath,
 		DatastoreName:       vmDS,
 		MemoryMB:            vmMemoryMB,
-		Name:                "",
+		Name:                fmt.Sprintf("vmkite-%s", time.Now().Format("200612-150405")),
 		NetworkLabel:        vmNetwork,
 		NumCPUs:             vmNumCPUs,
 		NumCoresPerSocket:   vmNumCoresPerSocket,

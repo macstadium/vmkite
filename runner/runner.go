@@ -67,11 +67,11 @@ func RunOnce(vs *vsphere.Session, bk *buildkite.Session, params Params) error {
 }
 
 func handleJob(job buildkite.VmkiteJob, vs *vsphere.Session, params vsphere.VirtualMachineCreationParams) (string, error) {
-	debugf("job %s => %s %s", job.ID, job.Metadata.VMDK, job.Metadata.GuestID)
+	debugf("handleJob(%s) => %s %s", job.String(), job.Metadata.VMDK, job.Metadata.GuestID)
 	params.SrcDiskPath = job.Metadata.VMDK
 	params.GuestID = job.Metadata.GuestID
+	params.Name = job.VMName()
 
-	// debugf("vm params %#v", params)
 	vm, err := creator.CreateVM(vs, params)
 	if err != nil {
 		return "", err
@@ -90,7 +90,7 @@ func destroyFinished(s *state, vs *vsphere.Session, bk *buildkite.Session) error
 			return fmt.Errorf("vm.IsPoweredOn failed: %v", err)
 		}
 		if !poweredOn {
-			debugf("destroying finished vm %s", js.VmName)
+			debugf("destroying finished vm %s (%s since job created)", js.VmName, time.Now().Sub(js.CreatedAt))
 			if err = vm.Destroy(true); err != nil {
 				return err
 			}

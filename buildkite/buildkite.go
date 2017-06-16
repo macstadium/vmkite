@@ -1,9 +1,12 @@
 package buildkite
 
 import (
+	"fmt"
 	"log"
+	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/buildkite/go-buildkite.v2/buildkite"
 )
@@ -28,7 +31,26 @@ type VmkiteJob struct {
 	ID          string
 	BuildNumber string
 	Pipeline    string
+	CreatedAt   time.Time
 	Metadata    VmkiteMetadata
+}
+
+func (v *VmkiteJob) TemplateName() string {
+	return path.Dir(v.Metadata.VMDK)
+}
+
+func (v *VmkiteJob) String() string {
+	return fmt.Sprintf("%s/%s/%s", v.Pipeline, v.BuildNumber, v.ID)
+}
+
+func (v VmkiteJob) VMName() string {
+	return fmt.Sprintf(
+		"%s-%s-%s-%s",
+		v.TemplateName(),
+		v.Pipeline,
+		v.BuildNumber,
+		v.CreatedAt.Format("200612-150405"),
+	)
 }
 
 type VmkiteJobQueryParams struct {
@@ -73,6 +95,7 @@ func readJobsFromBuilds(builds []buildkite.Build) []VmkiteJob {
 					BuildNumber: strconv.Itoa(*build.Number),
 					Pipeline:    *build.Pipeline.Slug,
 					Metadata:    metadata,
+					CreatedAt:   build.CreatedAt.Time,
 				})
 			}
 		}
