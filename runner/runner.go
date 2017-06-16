@@ -24,21 +24,31 @@ func Run(vs *vsphere.Session, bk *buildkite.Session, params Params) error {
 			Pipelines: params.Pipelines,
 		})
 		if err != nil {
-			debugf("ERROR VmkiteJobs: %s", err)
+			debugf("ERROR VmkiteJobs: %v", err)
 			continue
 		}
+		if len(jobs) > 0 {
+			debugf("Found %d jobs to process", len(jobs))
+		}
 		for _, j := range jobs {
+			// check if we are tracking this VM or if it's been previously created
 			if existing, ok := st.Get(j); ok {
-				debugf("already created %s for job %s", existing.VmName, j.ID)
+				debugf("created %s %v ago", existing.VmName, time.Now().Sub(existing.CreatedAt))
+				continue
+			} else if existing, err := vs.VirtualMachine(j.VMName()); err == nil {
+				debugf("vm %s already exists", existing.Name)
+				st.Track(j, existing.Name)
 				continue
 			}
+
 			vmName, err := handleJob(j, vs, params.CreationParams)
 			if err != nil {
-				debugf("ERROR handleJob: %s", err)
+				debugf("ERROR handleJob: %#v", err)
 				continue
 			}
+
 			debugf("created VM '%s' from '%s' for job %s", vmName, j.Metadata.VMDK, j.ID)
-			st.Track(j, vmName, params.CreationParams.VirtualMachinePath)
+			st.Track(j, vmName)
 		}
 		if err = destroyFinished(st, vs, bk); err != nil {
 			debugf("ERROR destroyFinished: %s", err)

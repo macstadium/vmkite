@@ -8,12 +8,11 @@ import (
 
 type jobState struct {
 	buildkite.VmkiteJob
-	VmPath string
 	VmName string
 }
 
 func (j jobState) FullPath() string {
-	return j.VmPath + "/" + j.VmName
+	return j.VmName
 }
 
 type state struct {
@@ -38,13 +37,12 @@ func (st *state) Get(job buildkite.VmkiteJob) (jobState, bool) {
 	return js, ok
 }
 
-func (st *state) Track(job buildkite.VmkiteJob, vmName, vmPath string) {
+func (st *state) Track(job buildkite.VmkiteJob, vmName string) {
 	st.Lock()
 	defer st.Unlock()
 	st.jobVMs[job.ID] = jobState{
 		VmkiteJob: job,
 		VmName:    vmName,
-		VmPath:    vmPath,
 	}
 }
 
