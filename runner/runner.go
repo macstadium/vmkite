@@ -59,23 +59,6 @@ func Run(vs *vsphere.Session, bk *buildkite.Session, params Params) error {
 	return nil
 }
 
-func RunOnce(vs *vsphere.Session, bk *buildkite.Session, params Params) error {
-	jobs, err := bk.VmkiteJobs(buildkite.VmkiteJobQueryParams{
-		Pipelines: params.Pipelines,
-	})
-	if err != nil {
-		return err
-	}
-	for _, j := range jobs {
-		vmName, err := handleJob(j, vs, params.CreationParams)
-		if err != nil {
-			return err
-		}
-		debugf("created VM '%s' from '%s' for job %s", vmName, j.Metadata.VMDK, j.ID)
-	}
-	return nil
-}
-
 func handleJob(job buildkite.VmkiteJob, vs *vsphere.Session, params vsphere.VirtualMachineCreationParams) (string, error) {
 	debugf("handleJob(%s) => %s %s", job.String(), job.Metadata.VMDK, job.Metadata.GuestID)
 	params.SrcDiskPath = job.Metadata.VMDK

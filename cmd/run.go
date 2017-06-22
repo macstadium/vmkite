@@ -14,7 +14,6 @@ var (
 	buildkiteAgentToken string
 	buildkiteOrg        string
 	buildkitePipelines  []string
-	runOnce             bool
 )
 
 func ConfigureRun(app *kingpin.Application) {
@@ -34,9 +33,6 @@ func ConfigureRun(app *kingpin.Application) {
 
 	cmd.Flag("buildkite-pipeline", "Limit to a specific buildkite pipelines").
 		StringsVar(&buildkitePipelines)
-
-	cmd.Flag("once", "Run once, launch for waiting jobs, exit").
-		BoolVar(&runOnce)
 
 	addCreateVMFlags(cmd)
 
@@ -72,9 +68,5 @@ func cmdRun(c *kingpin.ParseContext) error {
 		},
 	}
 
-	if runOnce {
-		return runner.RunOnce(vs, bk, params)
-	} else {
-		return runner.Run(vs, bk, params)
-	}
+	return runner.Run(vs, bk, params)
 }
