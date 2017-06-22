@@ -20,6 +20,12 @@ type state struct {
 	sync.RWMutex
 }
 
+func (st *state) Len() int {
+	st.RLock()
+	defer st.RUnlock()
+	return len(st.jobVMs)
+}
+
 func (st *state) List() []jobState {
 	st.RLock()
 	defer st.RUnlock()

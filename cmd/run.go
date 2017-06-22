@@ -14,6 +14,7 @@ var (
 	buildkiteAgentToken string
 	buildkiteOrg        string
 	buildkitePipelines  []string
+	concurrency         int
 )
 
 func ConfigureRun(app *kingpin.Application) {
@@ -34,6 +35,10 @@ func ConfigureRun(app *kingpin.Application) {
 	cmd.Flag("buildkite-pipeline", "Limit to a specific buildkite pipelines").
 		StringsVar(&buildkitePipelines)
 
+	cmd.Flag("concurrency", "Limit how many concurrent jobs are run").
+		Default("6").
+		IntVar(&concurrency)
+
 	addCreateVMFlags(cmd)
 
 	cmd.Action(cmdRun)
@@ -50,23 +55,23 @@ func cmdRun(c *kingpin.ParseContext) error {
 		return err
 	}
 
-	params := runner.Params{
-		Pipelines: buildkitePipelines,
-		CreationParams: vsphere.VirtualMachineCreationParams{
-			BuildkiteAgentToken: buildkiteAgentToken,
-			ClusterPath:         vmClusterPath,
-			VirtualMachinePath:  vmPath,
-			DatastoreName:       vmDS,
-			MemoryMB:            vmMemoryMB,
-			Name:                "", // automatic
-			NetworkLabel:        vmNetwork,
-			NumCPUs:             vmNumCPUs,
-			NumCoresPerSocket:   vmNumCoresPerSocket,
-			SrcDiskDataStore:    vmdkDS,
-			SrcDiskPath:         "", // per-job
-			GuestInfo:           vmGuestInfo,
-		},
-	}
+	r := runner.NewRunner(vs, bk, runner.Params{
+		Concurrency: concurrency,
+		Pipelines:   buildkitePipelines,
+	})
 
-	return runner.Run(vs, bk, params)
+	return r.Run(vsphere.VirtualMachineCreationParams{
+		BuildkiteAgentToken: buildkiteAgentToken,
+		ClusterPath:         vmClusterPath,
+		VirtualMachinePath:  vmPath,
+		DatastoreName:       vmDS,
+		MemoryMB:            vmMemoryMB,
+		Name:                "", // automatic
+		NetworkLabel:        vmNetwork,
+		NumCPUs:             vmNumCPUs,
+		NumCoresPerSocket:   vmNumCoresPerSocket,
+		SrcDiskDataStore:    vmdkDS,
+		SrcDiskPath:         "", // per-job
+		GuestInfo:           vmGuestInfo,
+	})
 }
