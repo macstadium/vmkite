@@ -57,7 +57,7 @@ type VmkiteJobQueryParams struct {
 	Pipelines []string
 }
 
-func (bk *Session) VmkiteJobs(query VmkiteJobQueryParams) ([]VmkiteJob, error) {
+func (bk *Session) ListJobs(query VmkiteJobQueryParams) ([]VmkiteJob, error) {
 	if len(query.Pipelines) > 0 {
 		jobs := make([]VmkiteJob, 0)
 		for _, pipeline := range query.Pipelines {
