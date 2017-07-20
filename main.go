@@ -26,11 +26,6 @@ func run(args []string, exit func(code int)) {
 	app.Writer(os.Stdout)
 	app.DefaultEnvars()
 	app.Terminate(exit)
-
-	cmd.ConfigureGlobal(app)
-
-	cmd.ConfigureCreateVM(app)
-	cmd.ConfigureDestroyVM(app)
 	cmd.ConfigureRun(app)
 
 	kingpin.MustParse(app.Parse(args))
