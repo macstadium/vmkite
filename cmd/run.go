@@ -36,7 +36,7 @@ func ConfigureRun(app *kingpin.Application) {
 		StringsVar(&buildkitePipelines)
 
 	cmd.Flag("concurrency", "Limit how many concurrent jobs are run").
-		Default("6").
+		Default("3").
 		IntVar(&concurrency)
 
 	addCreateVMFlags(cmd)

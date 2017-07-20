@@ -57,6 +57,43 @@ type VmkiteJobQueryParams struct {
 	Pipelines []string
 }
 
+func (bk *Session) PollJobs(query VmkiteJobQueryParams) chan VmkiteJob {
+	ch := make(chan VmkiteJob)
+	listed := make(chan []VmkiteJob)
+
+	// poll the api, return chunks of jobs
+	go func() {
+		for {
+			jobs, err := bk.ListJobs(query)
+			if err != nil {
+				debugf("ERROR VmkiteJobs: %v", err)
+				continue
+			}
+			debugf("Got %d jobs back from buildkite", len(jobs))
+			listed <- jobs
+		}
+	}()
+
+	// read the chunks of jobs and de-dupe them into unseen jobs
+	go func() {
+		sent := make(map[string]struct{})
+
+		for jobs := range listed {
+			received := make(map[string]struct{})
+			for _, job := range jobs {
+				received[job.ID] = struct{}{}
+
+				if _, exists := sent[job.ID]; !exists {
+					ch <- job
+				}
+			}
+			sent = received
+		}
+	}()
+
+	return ch
+}
+
 func (bk *Session) ListJobs(query VmkiteJobQueryParams) ([]VmkiteJob, error) {
 	if len(query.Pipelines) > 0 {
 		jobs := make([]VmkiteJob, 0)
