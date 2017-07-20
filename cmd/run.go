@@ -2,10 +2,14 @@ package cmd
 
 import (
 	"context"
+	"log"
+	"os"
+	"time"
 
 	"github.com/macstadium/vmkite/buildkite"
 	"github.com/macstadium/vmkite/runner"
 	"github.com/macstadium/vmkite/vsphere"
+	metrics "github.com/rcrowley/go-metrics"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -44,7 +48,22 @@ func ConfigureRun(app *kingpin.Application) {
 	cmd.Action(cmdRun)
 }
 
+func newMetricsRegistry() metrics.Registry {
+	registry := metrics.NewRegistry()
+
+	metrics.RegisterDebugGCStats(registry)
+	go metrics.CaptureDebugGCStats(registry, 5*time.Second)
+
+	metrics.RegisterRuntimeMemStats(registry)
+	go metrics.CaptureRuntimeMemStats(registry, 5*time.Second)
+
+	return registry
+}
+
 func cmdRun(c *kingpin.ParseContext) error {
+	registry := newMetricsRegistry()
+	go metrics.Log(registry, 30*time.Second, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
+
 	vs, err := vsphere.NewSession(context.Background(), connectionParams)
 	if err != nil {
 		return err

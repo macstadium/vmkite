@@ -27,6 +27,12 @@
 			"revisionTime": "2017-01-11T10:11:55Z"
 		},
 		{
+			"checksumSHA1": "KAzbLjI9MzW2tjfcAsK75lVRp6I=",
+			"path": "github.com/rcrowley/go-metrics",
+			"revision": "1f30fe9094a513ce4c700b9a54458bbb0c96996c",
+			"revisionTime": "2016-11-28T21:05:44Z"
+		},
+		{
 			"checksumSHA1": "V1sVqbL6864Ju8cU66Sk1NxTeQc=",
 			"path": "github.com/vmware/govmomi",
 			"revision": "45a5351755f12668ca9a0b63f1d1c906431157f6",
