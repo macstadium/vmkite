@@ -14,8 +14,10 @@ import (
 )
 
 type Params struct {
-	Pipelines   []string
-	Concurrency int
+	Pipelines      []string
+	Concurrency    int
+	ApiListenOn    string
+	ApiTokenSecret string
 }
 
 type Runner struct {
@@ -35,19 +37,35 @@ func NewRunner(vs *vsphere.Session, bk *buildkite.Session, p Params) *Runner {
 func (r *Runner) Run(createParams vsphere.VirtualMachineCreationParams) error {
 	var wg sync.WaitGroup
 
+	api, err := newApiListener(r.params.ApiListenOn, r.params.ApiTokenSecret)
+	if err != nil {
+		return err
+	}
+
 	jobs := r.bk.PollJobs(buildkite.VmkiteJobQueryParams{
 		Pipelines: r.params.Pipelines,
 	})
 
 	for i := 0; i < r.params.Concurrency; i++ {
-		debugf("Spawning runner %d", i+1)
+		debugf("spawning runner %d", i+1)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for job := range jobs {
-				if err := r.runJob(createParams, job); err != nil {
+				token, ch, err := api.Subscribe(job)
+				if err != nil {
+					debugf("Error subscribing to hook events: %v", err)
+					continue
+				}
+
+				createParams.GuestInfo["vmkite-api"] = api.Addr().String()
+				createParams.GuestInfo["vmkite-api-token"] = token
+
+				if err := r.runJob(createParams, job, ch); err != nil {
 					debugf("Error running job: %v", err)
 				}
+
+				api.Release(job)
 			}
 		}()
 	}
@@ -56,7 +74,8 @@ func (r *Runner) Run(createParams vsphere.VirtualMachineCreationParams) error {
 	return nil
 }
 
-func (r *Runner) runJob(createParams vsphere.VirtualMachineCreationParams, job buildkite.VmkiteJob) error {
+func (r *Runner) runJob(createParams vsphere.VirtualMachineCreationParams, job buildkite.VmkiteJob, events chan apiHookEvent) error {
+	debugf("running job %v", job.ID)
 	vm, err := r.createVMForJob(createParams, job)
 	if err != nil {
 		return err
@@ -65,11 +84,16 @@ func (r *Runner) runJob(createParams vsphere.VirtualMachineCreationParams, job b
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5)
 	defer cancel()
 
+	debugf("waiting for job %v to finish", job.ID)
 	ticker := time.NewTicker(time.Second * 1)
 	defer ticker.Stop()
 
 	for {
 		select {
+		case event := <-events:
+			debugf("read event %s from job %s (%v after job created)",
+				event.Event, event.JobID, event.Timestamp.Sub(job.CreatedAt))
+
 		case <-ticker.C:
 			poweredOn, err := vm.IsPoweredOn()
 			if err != nil {

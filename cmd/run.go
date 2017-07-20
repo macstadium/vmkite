@@ -15,6 +15,8 @@ var (
 	buildkiteOrg        string
 	buildkitePipelines  []string
 	concurrency         int
+	apiListenOn         string
+	apiTokenSecret      string
 )
 
 func ConfigureRun(app *kingpin.Application) {
@@ -39,6 +41,12 @@ func ConfigureRun(app *kingpin.Application) {
 		Default("3").
 		IntVar(&concurrency)
 
+	cmd.Flag("api-listen", "The address and port for the api server to listen on").
+		StringVar(&apiListenOn)
+
+	cmd.Flag("api-token-secret", "The secret to use for generating api job auth tokens").
+		StringVar(&apiTokenSecret)
+
 	addCreateVMFlags(cmd)
 
 	cmd.Action(cmdRun)
@@ -56,8 +64,10 @@ func cmdRun(c *kingpin.ParseContext) error {
 	}
 
 	r := runner.NewRunner(vs, bk, runner.Params{
-		Concurrency: concurrency,
-		Pipelines:   buildkitePipelines,
+		Concurrency:    concurrency,
+		Pipelines:      buildkitePipelines,
+		ApiListenOn:    apiListenOn,
+		ApiTokenSecret: apiTokenSecret,
 	})
 
 	return r.Run(vsphere.VirtualMachineCreationParams{

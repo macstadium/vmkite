@@ -11,6 +11,8 @@ import (
 	"gopkg.in/buildkite/go-buildkite.v2/buildkite"
 )
 
+const pollDuration = time.Second * 5
+
 type Session struct {
 	Org    string
 	client *buildkite.Client
@@ -66,11 +68,11 @@ func (bk *Session) PollJobs(query VmkiteJobQueryParams) chan VmkiteJob {
 		for {
 			jobs, err := bk.ListJobs(query)
 			if err != nil {
-				debugf("ERROR VmkiteJobs: %v", err)
+				debugf("ERROR ListJobs: %v", err)
 				continue
 			}
-			debugf("Got %d jobs back from buildkite", len(jobs))
 			listed <- jobs
+			time.Sleep(pollDuration)
 		}
 	}()
 
@@ -84,6 +86,7 @@ func (bk *Session) PollJobs(query VmkiteJobQueryParams) chan VmkiteJob {
 				received[job.ID] = struct{}{}
 
 				if _, exists := sent[job.ID]; !exists {
+					debugf("Received job %s from api", job.ID)
 					ch <- job
 				}
 			}
@@ -98,7 +101,6 @@ func (bk *Session) ListJobs(query VmkiteJobQueryParams) ([]VmkiteJob, error) {
 	if len(query.Pipelines) > 0 {
 		jobs := make([]VmkiteJob, 0)
 		for _, pipeline := range query.Pipelines {
-			debugf("Builds.ListByPipeline(%s, %s, ...)", bk.Org, pipeline)
 			builds, _, err := bk.client.Builds.ListByPipeline(bk.Org, pipeline, &buildkite.BuildsListOptions{
 				State: []string{"scheduled", "running"},
 			})
@@ -110,7 +112,6 @@ func (bk *Session) ListJobs(query VmkiteJobQueryParams) ([]VmkiteJob, error) {
 		return jobs, nil
 	}
 
-	debugf("Builds.ListByOrg(%s, ...)", bk.Org)
 	builds, _, err := bk.client.Builds.ListByOrg(bk.Org, &buildkite.BuildsListOptions{
 		State: []string{"scheduled", "running"},
 	})
